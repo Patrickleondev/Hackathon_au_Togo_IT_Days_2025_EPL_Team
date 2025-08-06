@@ -2,8 +2,7 @@
 
 ##  Hackathon Togo IT Days 2025
 
-Système de détection de ransomware intelligent utilisant l'IA avancée avec une combinaison des  modèles Hugging Face, ML traditionnel et détection d'évasion.
-
+Système de détection de ransomware intelligent utilisant l'IA avancée.
 ##  Installation Rapide
 
 ### Prérequis
