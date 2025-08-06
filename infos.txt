@@ -1,0 +1,23 @@
+
+
+Read file: backend/train_models_for_hackathon.py
+
+1. **ML Traditionnel** (Random Forest, SVM, Neural Network)
+2. **NLP/Hugging Face** (DistilBERT, RoBERTa, BERT multilingue)
+3. **Détection d'Évasion** (Sandbox, Antivirus, Comportementale)
+
+Vous pouvez maintenant lancer l'entraînement :
+
+```bash
+python train_models_for_hackathon.py
+```
+
+le script va :
+- ✅ Générer 1500 échantillons d'entraînement
+- ✅ Entraîner les modèles ML traditionnels
+- ✅ Simuler l'entraînement NLP (pour le hackathon)
+- ✅ Entraîner le détecteur d'évasion
+- ✅ Sauvegarder tous les modèles
+- ✅ Créer un modèle frontend unifié
+
+Voulez-vous que je lance l'entraînement maintenant ou préférez-vous d'abord vérifier quelque chose ?
