@@ -1,4 +1,4 @@
-# 🛡️ RansomGuard AI - Système de Détection Avancée
+#  RansomGuard AI - Système de Détection de Ransomware
 
 ##  Hackathon Togo IT Days 2025
 
@@ -60,7 +60,7 @@ cd ../frontend
 npm start
 ```
 
-## 📁 Structure des Modèles
+##  Structure des Modèles
 
 Les modèles sont sauvegardés dans le dossier `backend/models/` :
 
@@ -268,14 +268,14 @@ Les logs sont disponibles dans :
 3. **Tester avec `test_suite/`**
 4. **Documenter dans `docs/`**
 
-## 📚 Documentation Complémentaire
+##  Documentation Complémentaire
 
-- 📖 **Guide Utilisation** : `docs/GUIDE_UTILISATION.md`
-- 🚀 **Démarrage Rapide** : `docs/GUIDE_DEMARRAGE_RAPIDE.md`
-- 🧠 **Système Avancé** : `docs/SYSTEME_AVANCE.md`
-- 🧪 **Tests** : `test_suite/README.md`
+-  **Guide Utilisation** : `docs/GUIDE_UTILISATION.md`
+-  **Démarrage Rapide** : `docs/GUIDE_DEMARRAGE_RAPIDE.md`
+-  **Système Avancé** : `docs/SYSTEME_AVANCE.md`
+-  **Tests** : `test_suite/README.md`
 
-## 🏆 Hackathon
+##  Hackathon
 
 ### Démonstration
 1. **Lancer le système** : `python start_hackathon.py`
@@ -284,19 +284,12 @@ Les logs sont disponibles dans :
 4. **Montrer les statistiques** : Onglet Statistiques
 
 ### Points Clés
-- ✅ **Système unifié** : ML + NLP + Évasion
-- ✅ **Interface moderne** : React + Tailwind CSS
-- ✅ **API robuste** : FastAPI + Documentation
-- ✅ **Tests complets** : Suite de tests automatisés
-- ✅ **Documentation** : Guides détaillés
+-  **Système unifié** : ML + NLP + Évasion
+-  **Interface moderne** : React + Tailwind CSS
+-  **API robuste** : FastAPI + Documentation
+-  **Tests complets** : Suite de tests automatisés
+-  **Documentation** : Guides détaillés
 
-## 📞 Support
 
-Pour toute question ou problème :
-- 📧 **Email** : [votre-email]
-- 💬 **Discord** : [votre-discord]
-- 📱 **WhatsApp** : [votre-whatsapp]
 
----
-
-**RansomGuard AI** - Protection intelligente contre les ransomware 🛡️ 
+**RansomGuard AI** - Protection intelligente contre les ransomware 
