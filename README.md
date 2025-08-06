@@ -8,16 +8,16 @@ Système de détection de ransomware intelligent utilisant l'IA avancée avec un
 
 ### Prérequis
 
-- **Python 3.8+**
-- **Node.js 16+** (pour le frontend)
+- **Python 3.12**
+- **Node.js** (pour le frontend)
 - **Git**
 
 ### Installation
 
 ```bash
 # 1. Cloner le projet
-git clone <repository_url>
-cd "Togo IT Days"
+git clone https://github.com/Patrickleondev/Hackathon_au_Togo_IT_Days_2025_EPL_Team.git
+cd "Hackathon_au_Togo_IT_Days_2025_EPL_Team"
 
 # 2. Installer les dépendances backend
 cd backend
