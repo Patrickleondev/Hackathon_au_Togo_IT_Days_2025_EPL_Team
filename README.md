@@ -2,7 +2,7 @@
 
 ##  Hackathon Togo IT Days 2025
 
-Système de détection de ransomware intelligent utilisant l'IA avancée.
+Système de détection de ransomware intelligent utilisant l'IA.
 ##  Installation Rapide
 
 ### Prérequis
