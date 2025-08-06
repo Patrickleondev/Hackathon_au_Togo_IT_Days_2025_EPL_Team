@@ -560,8 +560,8 @@ class HackathonModelTrainer:
                         'f1': eval_results.get('eval_f1', 0.0)
                     }
                     
-                    logger.info(f"✅ {model_name.upper()} entraîné avec succès!")
-                    logger.info(f"📊 Métriques: {model_metrics[model_name]}")
+                    logger.info(f" {model_name.upper()} entraîné avec succès!")
+                    logger.info(f" Métriques: {model_metrics[model_name]}")
                     
                 except Exception as e:
                     logger.error(f"❌ Erreur lors de l'entraînement de {model_name}: {e}")
@@ -712,14 +712,14 @@ class HackathonModelTrainer:
             print("="*60)
             
             if results.get('success', False):
-                print(f"✅ Entraînement unifié réussi!")
-                print(f"⏱️ Temps d'entraînement: {results.get('training_time', 0):.2f} secondes")
+                print(f" Entraînement unifié réussi!")
+                print(f"⏱ Temps d'entraînement: {results.get('training_time', 0):.2f} secondes")
                 
                 unified_results = results.get('results', {})
                 
                 # Métriques ML
                 ml_metrics = unified_results.get('ml_models', {}).get('metrics', {})
-                print("\n🤖 MODÈLES ML:")
+                print("\n MODÈLES ML:")
                 for model_name, metrics in ml_metrics.items():
                     print(f"  • {model_name.upper()}:")
                     print(f"    - Précision: {metrics.get('precision', 0)*100:.1f}%")
@@ -756,19 +756,19 @@ async def main():
     """Fonction principale d'entraînement unifié"""
     trainer = HackathonModelTrainer()
     
-    print("🚀 DÉMARRAGE DE L'ENTRAÎNEMENT UNIFIÉ POUR LE HACKATHON")
+    print(" DÉMARRAGE DE L'ENTRAÎNEMENT UNIFIÉ POUR LE HACKATHON")
     print("="*60)
     
     # Étape 1: Générer les données d'entraînement unifiées
-    print("📊 Génération des données d'entraînement unifiées...")
+    print(" Génération des données d'entraînement unifiées...")
     training_data = trainer.generate_unified_training_data()
     
     # Étape 2: Entraîner le système unifié
-    print("🎯 Entraînement du système unifié...")
+    print(" Entraînement du système unifié...")
     training_results = await trainer.train_unified_system(training_data)
     
     # Étape 3: Créer les modèles frontend
-    print("🎨 Création des modèles frontend unifiés...")
+    print(" Création des modèles frontend unifiés...")
     frontend_results = trainer.create_frontend_models()
     
     # Afficher les résultats
@@ -781,7 +781,5 @@ async def main():
     else:
         print(f"❌ Erreur lors de la création du modèle frontend: {frontend_results.get('error', 'Erreur inconnue')}")
     
-    print("\n🎯 Entraînement unifié terminé! Le système est prêt pour le hackathon!")
-
 if __name__ == "__main__":
     asyncio.run(main()) 
