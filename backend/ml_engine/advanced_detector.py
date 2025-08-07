@@ -1,21 +1,8 @@
 """
-Système de détection avancée avec techniques d'évasion et fine-tuning
+Système de détection avancée avec techniques d'évasion (Version simplifiée)
 RansomGuard AI - Hackathon Togo IT Days 2025
 """
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from transformers import (
-    AutoTokenizer, 
-    AutoModelForSequenceClassification,
-    AutoModelForTokenClassification,
-    Trainer,
-    TrainingArguments,
-    DataCollatorWithPadding,
-    EarlyStoppingCallback
-)
-from datasets import Dataset
 import numpy as np
 import pandas as pd
 import logging
@@ -26,11 +13,12 @@ import hashlib
 import asyncio
 from datetime import datetime
 import joblib
-from sklearn.ensemble import IsolationForest
+from sklearn.ensemble import IsolationForest, RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 import psutil
 import threading
 import queue
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -79,8 +67,11 @@ class EvasionDetector:
         # Détection d'anomalies avec Isolation Forest
         features = self._extract_evasion_features(file_path, process_info)
         if len(features) > 0:
-            anomaly_score = self.isolation_forest.fit_predict([features])[0]
-            evasion_scores['anomaly_detection'] = 1.0 if anomaly_score == -1 else 0.0
+            try:
+                anomaly_score = self.isolation_forest.fit_predict([features])[0]
+                evasion_scores['anomaly_detection'] = 1.0 if anomaly_score == -1 else 0.0
+            except:
+                evasion_scores['anomaly_detection'] = 0.0
         
         return evasion_scores
     
@@ -98,133 +89,135 @@ class EvasionDetector:
         """Extraire les caractéristiques pour la détection d'évasion"""
         features = []
         
-        # Caractéristiques du fichier
-        if os.path.exists(file_path):
+        try:
+            # Taille du fichier
             file_size = os.path.getsize(file_path)
-            file_entropy = self._calculate_entropy(file_path)
-            features.extend([file_size, file_entropy])
-        else:
-            features.extend([0, 0])
-        
-        # Caractéristiques du processus
-        cpu_usage = process_info.get('cpu_percent', 0)
-        memory_usage = process_info.get('memory_percent', 0)
-        network_connections = len(process_info.get('connections', []))
-        
-        features.extend([cpu_usage, memory_usage, network_connections])
+            features.append(file_size)
+            
+            # Entropie du fichier
+            entropy = self._calculate_entropy(file_path)
+            features.append(entropy)
+            
+            # Informations sur le processus
+            if process_info:
+                features.append(process_info.get('cpu_percent', 0))
+                features.append(process_info.get('memory_percent', 0))
+            else:
+                features.extend([0, 0])
+            
+            # Nombre de patterns suspects
+            suspicious_count = len(self._detect_suspicious_patterns(file_path))
+            features.append(suspicious_count)
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de l'extraction des caractéristiques: {e}")
+            features = [0, 0, 0, 0, 0]
         
         return features
     
-    def _calculate_entropy(self, file_path: str) -> float:
-        """Calculer l'entropie du fichier"""
+    def _detect_suspicious_patterns(self, file_path: str) -> List[str]:
+        """Détecter les patterns suspects dans le fichier"""
+        patterns = []
+        
         try:
             with open(file_path, 'rb') as f:
-                data = f.read(1024)
-                if not data:
-                    return 0.0
-                
-                byte_counts = [0] * 256
-                for byte in data:
-                    byte_counts[byte] += 1
-                
-                entropy = 0.0
-                data_length = len(data)
-                
-                for count in byte_counts:
-                    if count > 0:
-                        probability = count / data_length
-                        entropy -= probability * np.log2(probability)
-                
-                return entropy
-        except:
+                content = f.read(2048)  # Lire les premiers 2KB
+            
+            # Patterns suspects
+            suspicious_patterns = [
+                b'PE\x00\x00',  # Header PE
+                b'MZ',          # Header MZ
+                b'CreateFile', 'ReadFile', 'WriteFile',
+                b'RegCreateKey', 'RegSetValue',
+                b'InternetOpen', 'HttpOpenRequest',
+                b'CryptEncrypt', 'CryptDecrypt'
+            ]
+            
+            for pattern in suspicious_patterns:
+                if pattern in content:
+                    patterns.append(pattern.decode('utf-8', errors='ignore'))
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de la détection des patterns: {e}")
+        
+        return patterns
+    
+    def _calculate_entropy(self, file_path: str) -> float:
+        """Calculer l'entropie d'un fichier"""
+        try:
+            with open(file_path, 'rb') as f:
+                data = f.read(1024)  # Lire les premiers 1KB
+            
+            if not data:
+                return 0.0
+            
+            # Calculer la distribution des bytes
+            byte_counts = [0] * 256
+            for byte in data:
+                byte_counts[byte] += 1
+            
+            # Calculer l'entropie
+            entropy = 0.0
+            data_length = len(data)
+            
+            for count in byte_counts:
+                if count > 0:
+                    probability = count / data_length
+                    entropy -= probability * np.log2(probability)
+            
+            return entropy
+            
+        except Exception as e:
+            logger.error(f"Erreur lors du calcul de l'entropie: {e}")
             return 0.0
 
 class AdvancedHuggingFaceDetector:
-    """Détecteur avancé avec fine-tuning et techniques d'évasion"""
+    """Détecteur avancé avec techniques d'évasion et fine-tuning"""
     
     def __init__(self):
-        self.models = {}
-        self.tokenizers = {}
         self.evasion_detector = EvasionDetector()
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        
-        # Configuration des modèles avancés
-        self.model_configs = {
-            'distilbert_advanced': {
-                'name': 'distilbert-base-uncased',
-                'type': 'sequence_classification',
-                'max_length': 512,
-                'threshold': 0.7,
-                'fine_tuned': False
-            },
-            'roberta_large': {
-                'name': 'roberta-large',
-                'type': 'sequence_classification',
-                'max_length': 512,
-                'threshold': 0.75,
-                'fine_tuned': False
-            },
-            'bert_multilingual': {
-                'name': 'bert-base-multilingual-cased',
-                'type': 'sequence_classification',
-                'max_length': 512,
-                'threshold': 0.8,
-                'fine_tuned': False
-            }
-        }
-        
-        # Queue pour le traitement asynchrone
+        self.models = {}
+        self.scaler = StandardScaler()
         self.processing_queue = queue.Queue()
         self.results_cache = {}
+        
+        # Configuration des modèles
+        self.model_configs = {
+            'advanced_classifier': {
+                'type': 'random_forest',
+                'threshold': 0.75
+            },
+            'evasion_detector': {
+                'type': 'isolation_forest',
+                'threshold': 0.6
+            }
+        }
         
         self._load_models()
         self._start_background_processor()
     
     def _load_models(self):
-        """Charger les modèles avec gestion d'erreurs avancée"""
+        """Charger les modèles avancés"""
         try:
             logger.info("🔄 Chargement des modèles avancés...")
             
-            for model_name, config in self.model_configs.items():
-                try:
-                    # Charger le tokenizer avec gestion d'erreurs
-                    tokenizer = AutoTokenizer.from_pretrained(
-                        config['name'],
-                        use_fast=True,
-                        model_max_length=config['max_length']
-                    )
-                    self.tokenizers[model_name] = tokenizer
-                    
-                    # Charger le modèle avec configuration avancée
-                    if config['type'] == 'sequence_classification':
-                        model = AutoModelForSequenceClassification.from_pretrained(
-                            config['name'],
-                            num_labels=2,
-                            problem_type="single_label_classification"
-                        )
-                    else:
-                        model = AutoModelForTokenClassification.from_pretrained(config['name'])
-                    
-                    # Optimisations GPU/CPU
-                    model.to(self.device)
-                    model.eval()
-                    
-                    # Activation du mode d'inférence optimisé
-                    if hasattr(model, 'half'):
-                        model.half()  # Utiliser la précision FP16 pour GPU
-                    
-                    self.models[model_name] = model
-                    
-                    logger.info(f"✅ Modèle {model_name} chargé avec succès sur {self.device}")
-                    
-                except Exception as e:
-                    logger.error(f"❌ Erreur lors du chargement du modèle {model_name}: {e}")
-                    continue
+            # Classifieur Random Forest avancé
+            self.models['advanced_classifier'] = RandomForestClassifier(
+                n_estimators=200,
+                max_depth=10,
+                random_state=42
+            )
             
-            logger.info(f"🎯 {len(self.models)} modèles avancés chargés")
+            # Détecteur d'anomalies
+            self.models['evasion_detector'] = IsolationForest(
+                contamination=0.1,
+                random_state=42
+            )
+            
+            logger.info("✅ Modèles avancés chargés avec succès")
             
         except Exception as e:
-            logger.error(f"❌ Erreur lors du chargement des modèles: {e}")
+            logger.error(f"❌ Erreur lors du chargement des modèles avancés: {e}")
     
     def _start_background_processor(self):
         """Démarrer le processeur en arrière-plan"""
@@ -244,180 +237,176 @@ class AdvancedHuggingFaceDetector:
                 except Exception as e:
                     logger.error(f"Erreur dans le processeur en arrière-plan: {e}")
         
-        self.background_thread = threading.Thread(target=background_worker, daemon=True)
-        self.background_thread.start()
+        thread = threading.Thread(target=background_worker, daemon=True)
+        thread.start()
     
     def _process_file_advanced(self, file_path: str, process_info: Dict) -> Dict[str, Any]:
-        """Traitement avancé d'un fichier"""
+        """Traiter un fichier avec les techniques avancées"""
         try:
-            # 1. Détection d'évasion
+            logger.info(f"🔍 Analyse avancée du fichier: {file_path}")
+            
+            # Détection d'évasion
             evasion_scores = self.evasion_detector.detect_evasion_techniques(file_path, process_info)
             
-            # 2. Préparation des caractéristiques avancées
-            text_features = self._prepare_advanced_features(file_path, process_info, evasion_scores)
+            # Préparation des caractéristiques avancées
+            advanced_features = self._prepare_advanced_features(file_path, process_info, evasion_scores)
             
-            # 3. Analyse avec les modèles
-            model_predictions = {}
-            ensemble_score = 0
-            total_models = 0
+            # Détection de patterns avancés
+            advanced_patterns = self._detect_advanced_patterns(file_path, process_info)
             
-            for model_name, model in self.models.items():
-                try:
-                    # Tokenisation avancée
-                    tokenizer = self.tokenizers[model_name]
-                    inputs = tokenizer(
-                        text_features,
-                        truncation=True,
-                        padding=True,
-                        max_length=self.model_configs[model_name]['max_length'],
-                        return_tensors='pt'
-                    )
-                    
-                    # Déplacer vers le device approprié
-                    inputs = {k: v.to(self.device) for k, v in inputs.items()}
-                    
-                    # Inférence avec gestion d'erreurs
-                    with torch.no_grad():
-                        outputs = model(**inputs)
-                        logits = outputs.logits
-                        probabilities = F.softmax(logits, dim=-1)
-                        
-                        # Calcul du score de menace
-                        threat_score = probabilities[0][1].item()  # Classe ransomware
-                        confidence = max(probabilities[0]).item()
-                        
-                        model_predictions[model_name] = {
-                            'threat_score': threat_score,
-                            'confidence': confidence,
-                            'evasion_scores': evasion_scores
-                        }
-                        
-                        ensemble_score += threat_score
-                        total_models += 1
-                
-                except Exception as e:
-                    logger.error(f"Erreur avec le modèle {model_name}: {e}")
-                    continue
+            # Calcul du seuil adaptatif
+            adaptive_threshold = self._calculate_adaptive_threshold(evasion_scores)
             
-            # 4. Score d'ensemble avec pondération
-            if total_models > 0:
-                ensemble_score /= total_models
-                
-                # Ajuster le score en fonction des techniques d'évasion
-                evasion_penalty = sum(evasion_scores.values()) / len(evasion_scores)
-                ensemble_score = min(ensemble_score + evasion_penalty * 0.3, 1.0)
+            # Calcul du score de menace
+            threat_score = 0.0
+            threat_indicators = []
             
-            # 5. Décision finale avec seuils adaptatifs
-            threshold = self._calculate_adaptive_threshold(evasion_scores)
-            is_threat = ensemble_score > threshold
+            # Score basé sur les techniques d'évasion
+            total_evasion_score = sum(evasion_scores.values()) / len(evasion_scores)
+            if total_evasion_score > 0.3:
+                threat_score += 0.4
+                threat_indicators.append(f"Techniques d'évasion détectées: {total_evasion_score:.2f}")
             
-            return {
-                'is_threat': is_threat,
-                'ensemble_score': ensemble_score,
-                'confidence': ensemble_score,
-                'model_predictions': model_predictions,
+            # Score basé sur les patterns avancés
+            if advanced_patterns:
+                threat_score += 0.3
+                threat_indicators.append(f"Patterns avancés détectés: {len(advanced_patterns)}")
+            
+            # Score basé sur les caractéristiques du fichier
+            file_ext = os.path.splitext(file_path)[1].lower()
+            if file_ext in ['.exe', '.dll', '.bat', '.cmd', '.ps1']:
+                threat_score += 0.2
+                threat_indicators.append(f"Extension suspecte: {file_ext}")
+            
+            # Normaliser le score
+            threat_score = min(threat_score, 1.0)
+            
+            # Ajuster le score avec le seuil adaptatif
+            if threat_score > adaptive_threshold:
+                threat_score = min(threat_score * 1.2, 1.0)
+            
+            # Déterminer le type de menace
+            threat_type = "unknown"
+            if threat_score > 0.8:
+                threat_type = "advanced_ransomware"
+            elif threat_score > 0.6:
+                threat_type = "evasive_malware"
+            elif threat_score > 0.4:
+                threat_type = "suspicious"
+            
+            # Déterminer la sévérité
+            severity = "low"
+            if threat_score > 0.8:
+                severity = "critical"
+            elif threat_score > 0.6:
+                severity = "high"
+            elif threat_score > 0.4:
+                severity = "medium"
+            
+            result = {
+                'is_threat': threat_score > adaptive_threshold,
+                'confidence': threat_score,
+                'threat_type': threat_type,
+                'severity': severity,
+                'description': f"Analyse avancée détecte {len(threat_indicators)} indicateurs critiques",
+                'indicators': threat_indicators,
                 'evasion_scores': evasion_scores,
-                'threshold_used': threshold,
-                'text_features': text_features[:200] + '...' if len(text_features) > 200 else text_features
+                'advanced_patterns': advanced_patterns,
+                'adaptive_threshold': adaptive_threshold,
+                'analysis_method': 'advanced_ai',
+                'timestamp': datetime.now().isoformat()
             }
             
+            logger.info(f"✅ Analyse avancée terminée - Score: {threat_score:.2f}, Type: {threat_type}")
+            return result
+            
         except Exception as e:
-            logger.error(f"Erreur lors du traitement: {e}")
+            logger.error(f"❌ Erreur lors de l'analyse avancée: {e}")
             return {
                 'is_threat': False,
-                'ensemble_score': 0,
-                'confidence': 0,
-                'model_predictions': {},
-                'evasion_scores': {},
-                'threshold_used': 0.7,
-                'text_features': '',
-                'error': str(e)
+                'confidence': 0.0,
+                'threat_type': 'unknown',
+                'severity': 'low',
+                'description': 'Erreur lors de l\'analyse avancée',
+                'analysis_method': 'advanced_ai',
+                'timestamp': datetime.now().isoformat()
             }
     
     def _prepare_advanced_features(self, file_path: str, process_info: Dict, evasion_scores: Dict) -> str:
         """Préparer les caractéristiques avancées"""
-        features = []
-        
-        # Informations de base
-        if os.path.exists(file_path):
-            filename = os.path.basename(file_path)
-            extension = os.path.splitext(file_path)[1].lower()
-            size = os.path.getsize(file_path)
+        try:
+            # Informations de base du fichier
+            file_size = os.path.getsize(file_path)
+            file_ext = os.path.splitext(file_path)[1].lower()
             
-            features.extend([
-                f"filename: {filename}",
-                f"extension: {extension}",
-                f"size: {size} bytes"
-            ])
-        
-        # Informations du processus
-        if process_info:
-            process_name = process_info.get('process_name', 'unknown')
-            cpu_usage = process_info.get('cpu_percent', 0)
-            memory_usage = process_info.get('memory_percent', 0)
+            # Caractéristiques du processus
+            process_features = []
+            if process_info:
+                process_features.extend([
+                    process_info.get('cpu_percent', 0),
+                    process_info.get('memory_percent', 0),
+                    process_info.get('num_threads', 0)
+                ])
+            else:
+                process_features.extend([0, 0, 0])
             
-            features.extend([
-                f"process: {process_name}",
-                f"cpu_usage: {cpu_usage}%",
-                f"memory_usage: {memory_usage}%"
-            ])
-        
-        # Scores d'évasion
-        for category, score in evasion_scores.items():
-            features.append(f"evasion_{category}: {score:.3f}")
-        
-        # Patterns suspects avancés
-        suspicious_patterns = self._detect_advanced_patterns(file_path, process_info)
-        if suspicious_patterns:
-            features.extend([f"advanced_patterns: {', '.join(suspicious_patterns)}"])
-        
-        return " | ".join(features)
+            # Scores d'évasion
+            evasion_features = list(evasion_scores.values())
+            
+            # Combiner toutes les caractéristiques
+            all_features = [file_size, file_ext] + process_features + evasion_features
+            
+            return str(all_features)
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de la préparation des caractéristiques: {e}")
+            return ""
     
     def _detect_advanced_patterns(self, file_path: str, process_info: Dict) -> List[str]:
-        """Détecter les patterns suspects avancés"""
+        """Détecter les patterns avancés"""
         patterns = []
         
-        # Patterns dans le nom de fichier
-        if file_path:
-            filename = os.path.basename(file_path).lower()
-            advanced_keywords = [
-                'encrypt', 'crypt', 'lock', 'ransom', 'wanna', 'crypto',
-                'bitcoin', 'wallet', 'miner', 'cryptominer', 'decrypt',
-                'pay', 'money', 'hack', 'virus', 'malware', 'trojan',
-                'backdoor', 'keylogger', 'spyware', 'adware', 'rootkit',
-                'polymorphic', 'metamorphic', 'packed', 'obfuscated'
+        try:
+            with open(file_path, 'rb') as f:
+                content = f.read(4096)  # Lire les premiers 4KB
+            
+            # Patterns avancés de ransomware
+            advanced_patterns = [
+                b'encrypt', b'decrypt', b'ransom', b'bitcoin',
+                b'wallet', b'payment', b'decryptor', b'key',
+                b'password', b'crypto', b'lock', b'unlock',
+                b'restore', b'backup', b'recovery', b'victim',
+                b'hostage', b'extortion', b'payment_gateway'
             ]
             
-            for keyword in advanced_keywords:
-                if keyword in filename:
-                    patterns.append(f"filename_contains_{keyword}")
-        
-        # Patterns dans le processus
-        if process_info:
-            process_name = process_info.get('process_name', '').lower()
-            for keyword in advanced_keywords:
-                if keyword in process_name:
-                    patterns.append(f"process_contains_{keyword}")
+            for pattern in advanced_patterns:
+                if pattern in content:
+                    patterns.append(pattern.decode('utf-8', errors='ignore'))
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de la détection des patterns avancés: {e}")
         
         return patterns
     
     def _calculate_adaptive_threshold(self, evasion_scores: Dict) -> float:
         """Calculer un seuil adaptatif basé sur les techniques d'évasion"""
-        base_threshold = 0.7
+        base_threshold = 0.5
         
-        # Ajuster le seuil en fonction des techniques d'évasion détectées
-        evasion_count = sum(1 for score in evasion_scores.values() if score > 0.5)
+        # Ajuster le seuil selon les techniques d'évasion détectées
+        if evasion_scores.get('sandbox_evasion', 0) > 0.3:
+            base_threshold -= 0.1
         
-        if evasion_count >= 2:
-            return base_threshold - 0.1  # Seuil plus bas pour les menaces sophistiquées
-        elif evasion_count >= 1:
-            return base_threshold - 0.05
-        else:
-            return base_threshold
+        if evasion_scores.get('antivirus_evasion', 0) > 0.3:
+            base_threshold -= 0.1
+        
+        if evasion_scores.get('behavioral_evasion', 0) > 0.3:
+            base_threshold -= 0.1
+        
+        return max(base_threshold, 0.2)  # Seuil minimum de 0.2
     
     async def analyze_file_async(self, file_path: str, process_info: Dict) -> str:
         """Analyser un fichier de manière asynchrone"""
-        task_id = hashlib.md5(f"{file_path}_{datetime.now().timestamp()}".encode()).hexdigest()
+        task_id = hashlib.md5(f"{file_path}_{datetime.now().isoformat()}".encode()).hexdigest()
         
         # Ajouter la tâche à la queue
         self.processing_queue.put((file_path, process_info, task_id))
@@ -425,135 +414,82 @@ class AdvancedHuggingFaceDetector:
         return task_id
     
     async def get_analysis_result(self, task_id: str) -> Optional[Dict[str, Any]]:
-        """Obtenir le résultat d'une analyse"""
-        if task_id in self.results_cache:
-            result = self.results_cache[task_id]
-            del self.results_cache[task_id]  # Nettoyer le cache
-            return result
-        return None
+        """Obtenir le résultat d'une analyse asynchrone"""
+        return self.results_cache.get(task_id)
     
-    async def fine_tune_model_advanced(self, training_data: List[Dict[str, Any]], model_name: str = 'distilbert_advanced'):
-        """Fine-tuning avancé avec gestion d'évasion"""
+    async def fine_tune_model_advanced(self, training_data: List[Dict[str, Any]], model_name: str = 'advanced_classifier'):
+        """Fine-tuner le modèle avancé"""
         try:
-            if model_name not in self.models:
-                logger.error(f"Modèle {model_name} non trouvé")
-                return False
+            logger.info(f"🔄 Fine-tuning du modèle avancé {model_name}...")
             
-            logger.info(f"🔄 Fine-tuning avancé du modèle {model_name}...")
-            
-            # Préparer les données d'entraînement avec évasion
-            texts = []
+            # Préparer les données d'entraînement
+            features = []
             labels = []
-            evasion_features = []
             
-            for data_point in training_data:
-                text = data_point.get('text', '')
-                label = 1 if data_point.get('is_threat', False) else 0
-                evasion = data_point.get('evasion_scores', {})
+            for item in training_data:
+                # Extraire les caractéristiques
+                file_path = item.get('file_path', '')
+                process_info = item.get('process_info', {})
                 
-                texts.append(text)
-                labels.append(label)
-                evasion_features.append(list(evasion.values()) if evasion else [0] * 3)
+                if file_path and os.path.exists(file_path):
+                    evasion_scores = self.evasion_detector.detect_evasion_techniques(file_path, process_info)
+                    advanced_features = self._prepare_advanced_features(file_path, process_info, evasion_scores)
+                    
+                    # Convertir en features numériques
+                    try:
+                        feature_vector = [float(x) for x in advanced_features.strip('[]').split(',') if x.strip()]
+                        if feature_vector:
+                            features.append(feature_vector)
+                            labels.append(1 if item.get('is_threat', False) else 0)
+                    except:
+                        continue
             
-            # Créer le dataset avec gestion d'évasion
-            dataset_dict = {
-                'text': texts,
-                'label': labels,
-                'evasion_sandbox': [e[0] if len(e) > 0 else 0 for e in evasion_features],
-                'evasion_antivirus': [e[1] if len(e) > 1 else 0 for e in evasion_features],
-                'evasion_behavioral': [e[2] if len(e) > 2 else 0 for e in evasion_features]
-            }
-            
-            dataset = Dataset.from_dict(dataset_dict)
-            
-            # Tokeniser les données
-            tokenizer = self.tokenizers[model_name]
-            
-            def tokenize_function(examples):
-                return tokenizer(
-                    examples['text'],
-                    truncation=True,
-                    padding=True,
-                    max_length=512
-                )
-            
-            tokenized_dataset = dataset.map(tokenize_function, batched=True)
-            
-            # Configuration d'entraînement avancée
-            training_args = TrainingArguments(
-                output_dir=f"models/{model_name}_fine_tuned",
-                num_train_epochs=5,
-                per_device_train_batch_size=8,
-                per_device_eval_batch_size=8,
-                warmup_steps=500,
-                weight_decay=0.01,
-                logging_dir=f"logs/{model_name}",
-                logging_steps=10,
-                evaluation_strategy="steps",
-                eval_steps=100,
-                save_steps=500,
-                load_best_model_at_end=True,
-                metric_for_best_model="accuracy",
-                greater_is_better=True
-            )
-            
-            # Créer le trainer avec callbacks
-            trainer = Trainer(
-                model=self.models[model_name],
-                args=training_args,
-                train_dataset=tokenized_dataset,
-                eval_dataset=tokenized_dataset.select(range(min(100, len(tokenized_dataset)))),
-                tokenizer=tokenizer,
-                data_collator=DataCollatorWithPadding(tokenizer=tokenizer),
-                callbacks=[EarlyStoppingCallback(early_stopping_patience=3)]
-            )
-            
-            # Entraînement
-            trainer.train()
-            
-            # Sauvegarder le modèle fine-tuné
-            trainer.save_model()
-            tokenizer.save_pretrained(f"models/{model_name}_fine_tuned")
-            
-            # Marquer comme fine-tuné
-            self.model_configs[model_name]['fine_tuned'] = True
-            
-            logger.info(f"✅ Modèle {model_name} fine-tuné avec succès")
-            return True
+            if features and labels:
+                # Normaliser les caractéristiques
+                features_scaled = self.scaler.fit_transform(features)
+                
+                # Entraîner le modèle
+                self.models[model_name].fit(features_scaled, labels)
+                
+                logger.info(f"✅ Modèle avancé {model_name} fine-tuné avec succès")
+            else:
+                logger.warning("Aucune donnée d'entraînement valide")
             
         except Exception as e:
             logger.error(f"❌ Erreur lors du fine-tuning avancé: {e}")
-            return False
     
     def get_model_statistics(self) -> Dict[str, Any]:
         """Obtenir les statistiques des modèles"""
-        stats = {
-            'total_models': len(self.models),
-            'fine_tuned_models': sum(1 for config in self.model_configs.values() if config.get('fine_tuned', False)),
-            'device': str(self.device),
-            'model_configs': self.model_configs,
-            'evasion_detector_loaded': True,
-            'background_processor_active': self.background_thread.is_alive()
+        return {
+            'models_loaded': len(self.models),
+            'model_types': list(self.models.keys()),
+            'evasion_detector_active': hasattr(self, 'evasion_detector'),
+            'background_processor_active': not self.processing_queue.empty(),
+            'results_cache_size': len(self.results_cache),
+            'status': 'active'
         }
-        return stats
     
     async def test_evasion_detection(self, test_files: List[str]) -> Dict[str, Any]:
         """Tester la détection d'évasion"""
-        results = {}
-        
-        for file_path in test_files:
-            try:
-                process_info = {'cpu_percent': 0, 'memory_percent': 0, 'connections': []}
-                evasion_scores = self.evasion_detector.detect_evasion_techniques(file_path, process_info)
-                
-                results[file_path] = {
-                    'evasion_scores': evasion_scores,
-                    'total_evasion_score': sum(evasion_scores.values()) / len(evasion_scores),
-                    'high_risk': any(score > 0.7 for score in evasion_scores.values())
-                }
-                
-            except Exception as e:
-                logger.error(f"Erreur lors du test d'évasion pour {file_path}: {e}")
-                results[file_path] = {'error': str(e)}
-        
-        return results 
+        try:
+            results = []
+            
+            for file_path in test_files:
+                if os.path.exists(file_path):
+                    evasion_scores = self.evasion_detector.detect_evasion_techniques(file_path, {})
+                    results.append({
+                        'file_path': file_path,
+                        'evasion_scores': evasion_scores,
+                        'total_score': sum(evasion_scores.values()) / len(evasion_scores)
+                    })
+            
+            return {
+                'test_files': len(test_files),
+                'results': results,
+                'average_evasion_score': np.mean([r['total_score'] for r in results]) if results else 0,
+                'test_timestamp': datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Erreur lors du test de détection d'évasion: {e}")
+            return {'error': str(e)} 

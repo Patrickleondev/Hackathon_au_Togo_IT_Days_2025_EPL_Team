@@ -1,0 +1,2 @@
+Ceci est un fichier de test pour RansomGuard AI.
+Ce fichier ne contient aucune menace et est utilisé pour tester le système de détection.

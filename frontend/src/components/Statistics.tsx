@@ -3,7 +3,7 @@ import { BarChart3, TrendingUp, Shield, AlertTriangle, CheckCircle, Clock } from
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import axios from 'axios';
 
-interface Statistics {
+interface StatisticsData {
   total_threats_detected: number;
   threats_quarantined: number;
   detection_rate: number;
@@ -13,7 +13,7 @@ interface Statistics {
 }
 
 const Statistics: React.FC = () => {
-  const [stats, setStats] = useState<Statistics | null>(null);
+  const [stats, setStats] = useState<StatisticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

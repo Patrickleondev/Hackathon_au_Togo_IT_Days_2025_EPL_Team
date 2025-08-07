@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Shield, Trash2, Eye, Download, Clock } from 'lucide-react';
+import { AlertTriangle, Shield, Eye, Download, Clock } from 'lucide-react';
 import axios from 'axios';
 
 interface Threat {
@@ -11,6 +11,7 @@ interface Threat {
   file_path?: string;
   process_name?: string;
   confidence?: number;
+  quarantined?: boolean;
 }
 
 const Threats: React.FC = () => {

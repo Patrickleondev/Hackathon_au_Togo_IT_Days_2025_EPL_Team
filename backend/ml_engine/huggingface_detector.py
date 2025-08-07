@@ -1,400 +1,336 @@
 """
-Module de détection avec Hugging Face Transformers
+Module de détection avec Hugging Face Transformers (Version simplifiée)
 RansomGuard AI - Hackathon Togo IT Days 2025
 """
 
-import torch
-from transformers import (
-    AutoTokenizer, 
-    AutoModelForSequenceClassification,
-    AutoModelForTokenClassification,
-    pipeline,
-    DistilBertTokenizer,
-    DistilBertForSequenceClassification
-)
 import numpy as np
 import logging
 from typing import Dict, List, Any, Optional
 import os
 import json
 from datetime import datetime
+import hashlib
+import re
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.ensemble import RandomForestClassifier
+import joblib
 
 logger = logging.getLogger(__name__)
 
 class HuggingFaceDetector:
     """
-    Détecteur de ransomware utilisant les modèles Hugging Face
+    Détecteur de ransomware utilisant des techniques NLP simplifiées
     """
     
     def __init__(self):
         self.models = {}
-        self.tokenizers = {}
-        self.classifiers = {}
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.vectorizer = None
+        self.device = 'cpu'  # Version simplifiée
         
         # Configuration des modèles
         self.model_configs = {
-            'distilbert': {
-                'name': 'distilbert-base-uncased',
-                'type': 'sequence_classification',
-                'max_length': 512,
+            'text_classifier': {
+                'type': 'random_forest',
                 'threshold': 0.7
             },
-            'roberta': {
-                'name': 'roberta-base',
-                'type': 'sequence_classification', 
-                'max_length': 512,
-                'threshold': 0.75
-            },
-            'bert': {
-                'name': 'bert-base-uncased',
-                'type': 'sequence_classification',
-                'max_length': 512,
-                'threshold': 0.8
+            'pattern_detector': {
+                'type': 'rule_based',
+                'threshold': 0.6
             }
         }
         
         self._load_models()
         
     def _load_models(self):
-        """Charger les modèles Hugging Face"""
+        """Charger les modèles simplifiés"""
         try:
-            logger.info("🔄 Chargement des modèles Hugging Face...")
+            logger.info("🔄 Chargement des modèles NLP simplifiés...")
             
-            for model_name, config in self.model_configs.items():
-                try:
-                    # Charger le tokenizer
-                    tokenizer = AutoTokenizer.from_pretrained(config['name'])
-                    self.tokenizers[model_name] = tokenizer
-                    
-                    # Charger le modèle
-                    if config['type'] == 'sequence_classification':
-                        model = AutoModelForSequenceClassification.from_pretrained(
-                            config['name'],
-                            num_labels=2  # Binaire: ransomware ou non
-                        )
-                    else:
-                        model = AutoModelForTokenClassification.from_pretrained(config['name'])
-                    
-                    model.to(self.device)
-                    model.eval()
-                    self.models[model_name] = model
-                    
-                    # Créer le pipeline de classification
-                    classifier = pipeline(
-                        'text-classification',
-                        model=model,
-                        tokenizer=tokenizer,
-                        device=0 if torch.cuda.is_available() else -1
-                    )
-                    self.classifiers[model_name] = classifier
-                    
-                    logger.info(f"✅ Modèle {model_name} chargé avec succès")
-                    
-                except Exception as e:
-                    logger.error(f"❌ Erreur lors du chargement du modèle {model_name}: {e}")
-                    continue
+            # Créer un vectorizer TF-IDF
+            self.vectorizer = TfidfVectorizer(
+                max_features=1000,
+                stop_words='english',
+                ngram_range=(1, 2)
+            )
             
-            logger.info(f"🎯 {len(self.models)} modèles chargés sur {self.device}")
+            # Créer un classifieur Random Forest
+            self.models['text_classifier'] = RandomForestClassifier(
+                n_estimators=100,
+                random_state=42
+            )
+            
+            logger.info("✅ Modèles NLP simplifiés chargés avec succès")
             
         except Exception as e:
             logger.error(f"❌ Erreur lors du chargement des modèles: {e}")
     
-    def _prepare_text_features(self, file_path: str, process_info: Dict) -> str:
-        """Préparer les caractéristiques textuelles pour l'analyse"""
-        features = []
-        
-        # Informations sur le fichier
-        if os.path.exists(file_path):
-            filename = os.path.basename(file_path)
-            extension = os.path.splitext(file_path)[1].lower()
-            size = os.path.getsize(file_path)
+    def _extract_text_features(self, file_path: str) -> str:
+        """Extraire les caractéristiques textuelles d'un fichier"""
+        try:
+            # Lire les premiers bytes du fichier pour détecter les patterns
+            with open(file_path, 'rb') as f:
+                content = f.read(1024)  # Lire les premiers 1KB
             
-            features.extend([
-                f"filename: {filename}",
-                f"extension: {extension}",
-                f"size: {size} bytes"
-            ])
-        
-        # Informations sur le processus
-        if process_info:
-            process_name = process_info.get('process_name', 'unknown')
-            cpu_usage = process_info.get('cpu_percent', 0)
-            memory_usage = process_info.get('memory_percent', 0)
+            # Convertir en texte pour analyse
+            text_content = content.decode('utf-8', errors='ignore')
             
-            features.extend([
-                f"process: {process_name}",
-                f"cpu_usage: {cpu_usage}%",
-                f"memory_usage: {memory_usage}%"
-            ])
-        
-        # Patterns suspects
-        suspicious_patterns = self._detect_suspicious_patterns(file_path, process_info)
-        if suspicious_patterns:
-            features.extend([f"suspicious_patterns: {', '.join(suspicious_patterns)}"])
-        
-        return " | ".join(features)
-    
-    def _detect_suspicious_patterns(self, file_path: str, process_info: Dict) -> List[str]:
-        """Détecter les patterns suspects"""
-        patterns = []
-        
-        # Patterns dans le nom de fichier
-        if file_path:
-            filename = os.path.basename(file_path).lower()
-            suspicious_keywords = [
-                'encrypt', 'crypt', 'lock', 'ransom', 'wanna', 'crypto',
-                'bitcoin', 'wallet', 'miner', 'cryptominer', 'decrypt',
-                'pay', 'money', 'hack', 'virus', 'malware'
+            # Extraire les patterns suspects
+            patterns = []
+            
+            # Patterns de ransomware
+            ransomware_patterns = [
+                'encrypt', 'decrypt', 'ransom', 'bitcoin', 'wallet',
+                'payment', 'decryptor', 'key', 'password', 'crypto',
+                'lock', 'unlock', 'restore', 'backup', 'recovery'
             ]
             
-            for keyword in suspicious_keywords:
-                if keyword in filename:
-                    patterns.append(f"filename_contains_{keyword}")
+            for pattern in ransomware_patterns:
+                if pattern.lower() in text_content.lower():
+                    patterns.append(pattern)
+            
+            # Ajouter des métadonnées
+            file_info = f"size:{os.path.getsize(file_path)} ext:{os.path.splitext(file_path)[1]} patterns:{','.join(patterns)}"
+            
+            return file_info
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de l'extraction des caractéristiques: {e}")
+            return ""
+    
+    def _detect_suspicious_patterns(self, file_path: str) -> List[str]:
+        """Détecter les patterns suspects dans le fichier"""
+        patterns = []
         
-        # Patterns dans le processus
-        if process_info:
-            process_name = process_info.get('process_name', '').lower()
-            for keyword in suspicious_keywords:
-                if keyword in process_name:
-                    patterns.append(f"process_contains_{keyword}")
+        try:
+            with open(file_path, 'rb') as f:
+                content = f.read(2048)  # Lire les premiers 2KB
+            
+            # Patterns de fichiers suspects
+            suspicious_patterns = [
+                b'PE\x00\x00',  # Header PE
+                b'MZ',          # Header MZ
+                b'This program cannot be run in DOS mode',
+                b'CreateFile', 'ReadFile', 'WriteFile',
+                b'RegCreateKey', 'RegSetValue',
+                b'InternetOpen', 'HttpOpenRequest',
+                b'CryptEncrypt', 'CryptDecrypt'
+            ]
+            
+            for pattern in suspicious_patterns:
+                if pattern in content:
+                    patterns.append(pattern.decode('utf-8', errors='ignore'))
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de la détection des patterns: {e}")
         
         return patterns
     
     async def analyze_with_huggingface(self, file_path: str, process_info: Dict) -> Dict[str, Any]:
-        """Analyser avec les modèles Hugging Face"""
+        """Analyser un fichier avec les techniques NLP simplifiées"""
         try:
-            # Préparer les caractéristiques textuelles
-            text_features = self._prepare_text_features(file_path, process_info)
+            logger.info(f"🔍 Analyse NLP du fichier: {file_path}")
             
-            results = {}
-            ensemble_score = 0
-            total_models = 0
+            # Extraire les caractéristiques textuelles
+            text_features = self._extract_text_features(file_path)
             
-            # Analyser avec chaque modèle
-            for model_name, classifier in self.classifiers.items():
-                try:
-                    # Classification du texte
-                    prediction = classifier(text_features)
-                    
-                    # Interpréter les résultats
-                    if isinstance(prediction, list):
-                        prediction = prediction[0]
-                    
-                    # Calculer le score de menace
-                    if prediction['label'] == 'LABEL_1':  # Ransomware
-                        threat_score = prediction['score']
-                    else:  # LABEL_0 - Normal
-                        threat_score = 1 - prediction['score']
-                    
-                    results[model_name] = {
-                        'threat_score': threat_score,
-                        'confidence': prediction['score'],
-                        'label': prediction['label']
-                    }
-                    
-                    ensemble_score += threat_score
-                    total_models += 1
-                    
-                except Exception as e:
-                    logger.error(f"Erreur avec le modèle {model_name}: {e}")
-                    continue
+            # Détecter les patterns suspects
+            suspicious_patterns = self._detect_suspicious_patterns(file_path)
             
-            # Score d'ensemble
-            if total_models > 0:
-                ensemble_score /= total_models
-            else:
-                ensemble_score = 0
+            # Calculer un score de menace basé sur les patterns
+            threat_score = 0.0
+            threat_indicators = []
             
-            # Décision finale
-            threshold = 0.7  # Seuil configurable
-            is_threat = ensemble_score > threshold
+            # Score basé sur les patterns de ransomware
+            ransomware_keywords = ['encrypt', 'decrypt', 'ransom', 'bitcoin', 'wallet']
+            for keyword in ransomware_keywords:
+                if keyword in text_features.lower():
+                    threat_score += 0.2
+                    threat_indicators.append(f"Mot-clé suspect: {keyword}")
             
-            return {
-                'is_threat': is_threat,
-                'ensemble_score': ensemble_score,
-                'confidence': ensemble_score,
-                'model_predictions': results,
-                'text_features': text_features
+            # Score basé sur les patterns binaires
+            if suspicious_patterns:
+                threat_score += 0.3
+                threat_indicators.append(f"Patterns binaires suspects: {len(suspicious_patterns)}")
+            
+            # Score basé sur l'extension
+            file_ext = os.path.splitext(file_path)[1].lower()
+            suspicious_extensions = ['.exe', '.dll', '.bat', '.cmd', '.ps1', '.vbs']
+            if file_ext in suspicious_extensions:
+                threat_score += 0.1
+                threat_indicators.append(f"Extension suspecte: {file_ext}")
+            
+            # Normaliser le score
+            threat_score = min(threat_score, 1.0)
+            
+            # Déterminer le type de menace
+            threat_type = "unknown"
+            if threat_score > 0.7:
+                threat_type = "ransomware"
+            elif threat_score > 0.4:
+                threat_type = "malware"
+            elif threat_score > 0.2:
+                threat_type = "suspicious"
+            
+            # Déterminer la sévérité
+            severity = "low"
+            if threat_score > 0.8:
+                severity = "high"
+            elif threat_score > 0.5:
+                severity = "medium"
+            
+            result = {
+                'is_threat': threat_score > 0.5,
+                'confidence': threat_score,
+                'threat_type': threat_type,
+                'severity': severity,
+                'description': f"Analyse NLP détecte {len(threat_indicators)} indicateurs suspects",
+                'indicators': threat_indicators,
+                'patterns_detected': suspicious_patterns,
+                'analysis_method': 'nlp_simplified',
+                'timestamp': datetime.now().isoformat()
             }
             
+            logger.info(f"✅ Analyse NLP terminée - Score: {threat_score:.2f}, Type: {threat_type}")
+            return result
+            
         except Exception as e:
-            logger.error(f"Erreur lors de l'analyse Hugging Face: {e}")
+            logger.error(f"❌ Erreur lors de l'analyse NLP: {e}")
             return {
                 'is_threat': False,
-                'ensemble_score': 0,
-                'confidence': 0,
-                'model_predictions': {},
-                'text_features': '',
-                'error': str(e)
+                'confidence': 0.0,
+                'threat_type': 'unknown',
+                'severity': 'low',
+                'description': 'Erreur lors de l\'analyse NLP',
+                'analysis_method': 'nlp_simplified',
+                'timestamp': datetime.now().isoformat()
             }
     
     async def analyze_file_content(self, file_path: str) -> Dict[str, Any]:
-        """Analyser le contenu d'un fichier avec les modèles"""
+        """Analyser le contenu d'un fichier"""
         try:
-            if not os.path.exists(file_path):
-                return {'error': 'Fichier non trouvé'}
+            # Obtenir les informations de base du fichier
+            file_size = os.path.getsize(file_path)
+            file_ext = os.path.splitext(file_path)[1].lower()
             
-            # Lire le début du fichier pour l'analyse
-            with open(file_path, 'rb') as f:
-                content = f.read(1024)  # Premiers 1024 bytes
+            # Calculer l'entropie du fichier
+            entropy = self._calculate_entropy(file_path)
             
-            # Convertir en texte pour l'analyse
-            try:
-                text_content = content.decode('utf-8', errors='ignore')
-            except:
-                text_content = str(content)
-            
-            # Analyser avec les modèles
-            results = {}
-            for model_name, classifier in self.classifiers.items():
-                try:
-                    prediction = classifier(text_content[:512])  # Limiter la longueur
-                    
-                    if isinstance(prediction, list):
-                        prediction = prediction[0]
-                    
-                    threat_score = prediction['score'] if prediction['label'] == 'LABEL_1' else 1 - prediction['score']
-                    
-                    results[model_name] = {
-                        'threat_score': threat_score,
-                        'confidence': prediction['score']
-                    }
-                    
-                except Exception as e:
-                    logger.error(f"Erreur lors de l'analyse du contenu avec {model_name}: {e}")
+            # Détecter les patterns suspects
+            patterns = self._detect_suspicious_patterns(file_path)
             
             return {
-                'file_analysis': results,
-                'content_preview': text_content[:200] + '...' if len(text_content) > 200 else text_content
+                'file_size': file_size,
+                'file_extension': file_ext,
+                'entropy': entropy,
+                'suspicious_patterns': patterns,
+                'analysis_timestamp': datetime.now().isoformat()
             }
             
         except Exception as e:
             logger.error(f"Erreur lors de l'analyse du contenu: {e}")
-            return {'error': str(e)}
+            return {}
     
-    async def fine_tune_model(self, training_data: List[Dict[str, Any]], model_name: str = 'distilbert'):
-        """Fine-tuner un modèle avec de nouvelles données"""
+    def _calculate_entropy(self, file_path: str) -> float:
+        """Calculer l'entropie d'un fichier"""
         try:
-            if model_name not in self.models:
-                logger.error(f"Modèle {model_name} non trouvé")
-                return False
+            with open(file_path, 'rb') as f:
+                data = f.read(1024)  # Lire les premiers 1KB
             
+            if not data:
+                return 0.0
+            
+            # Calculer la distribution des bytes
+            byte_counts = [0] * 256
+            for byte in data:
+                byte_counts[byte] += 1
+            
+            # Calculer l'entropie
+            entropy = 0.0
+            data_length = len(data)
+            
+            for count in byte_counts:
+                if count > 0:
+                    probability = count / data_length
+                    entropy -= probability * np.log2(probability)
+            
+            return entropy
+            
+        except Exception as e:
+            logger.error(f"Erreur lors du calcul de l'entropie: {e}")
+            return 0.0
+    
+    async def fine_tune_model(self, training_data: List[Dict[str, Any]], model_name: str = 'text_classifier'):
+        """Fine-tuner le modèle avec de nouvelles données"""
+        try:
             logger.info(f"🔄 Fine-tuning du modèle {model_name}...")
             
             # Préparer les données d'entraînement
             texts = []
             labels = []
             
-            for data_point in training_data:
-                text = data_point.get('text', '')
-                label = 1 if data_point.get('is_threat', False) else 0
+            for item in training_data:
+                text = item.get('text', '')
+                label = 1 if item.get('is_threat', False) else 0
                 
                 texts.append(text)
                 labels.append(label)
             
-            # Tokeniser les données
-            tokenizer = self.tokenizers[model_name]
-            encodings = tokenizer(
-                texts,
-                truncation=True,
-                padding=True,
-                max_length=512,
-                return_tensors='pt'
-            )
+            if not texts:
+                logger.warning("Aucune donnée d'entraînement fournie")
+                return
             
-            # Créer le dataset
-            dataset = torch.utils.data.TensorDataset(
-                encodings['input_ids'],
-                encodings['attention_mask'],
-                torch.tensor(labels)
-            )
+            # Vectoriser les textes
+            X = self.vectorizer.fit_transform(texts)
+            y = np.array(labels)
             
-            # Configuration de l'entraînement
-            model = self.models[model_name]
-            optimizer = torch.optim.AdamW(model.parameters(), lr=2e-5)
+            # Entraîner le modèle
+            self.models[model_name].fit(X, y)
             
-            # Entraînement
-            model.train()
-            for epoch in range(3):  # 3 époques
-                total_loss = 0
-                for batch in torch.utils.data.DataLoader(dataset, batch_size=8):
-                    optimizer.zero_grad()
-                    
-                    input_ids = batch[0].to(self.device)
-                    attention_mask = batch[1].to(self.device)
-                    labels = batch[2].to(self.device)
-                    
-                    outputs = model(
-                        input_ids=input_ids,
-                        attention_mask=attention_mask,
-                        labels=labels
-                    )
-                    
-                    loss = outputs.loss
-                    loss.backward()
-                    optimizer.step()
-                    
-                    total_loss += loss.item()
-                
-                logger.info(f"Époque {epoch+1}, Loss: {total_loss/len(dataset)}")
-            
-            # Sauvegarder le modèle fine-tuné
-            model_path = f"models/{model_name}_fine_tuned"
-            model.save_pretrained(model_path)
-            tokenizer.save_pretrained(model_path)
-            
-            logger.info(f"✅ Modèle {model_name} fine-tuné et sauvegardé")
-            return True
+            logger.info(f"✅ Modèle {model_name} fine-tuné avec succès")
             
         except Exception as e:
             logger.error(f"❌ Erreur lors du fine-tuning: {e}")
-            return False
     
     def get_model_info(self) -> Dict[str, Any]:
         """Obtenir les informations sur les modèles"""
-        info = {
-            'loaded_models': list(self.models.keys()),
-            'device': str(self.device),
-            'total_models': len(self.models),
-            'model_configs': self.model_configs
+        return {
+            'models_loaded': len(self.models),
+            'device': self.device,
+            'model_types': list(self.models.keys()),
+            'vectorizer_loaded': self.vectorizer is not None,
+            'status': 'active' if self.models else 'inactive'
         }
-        return info
     
     async def test_model_performance(self, test_data: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Tester la performance des modèles"""
+        """Tester les performances du modèle"""
         try:
-            results = {}
+            if not test_data:
+                return {'error': 'Aucune donnée de test fournie'}
             
-            for model_name in self.models.keys():
-                correct = 0
-                total = 0
-                
-                for data_point in test_data:
-                    text = data_point.get('text', '')
-                    expected_label = data_point.get('is_threat', False)
-                    
-                    try:
-                        prediction = await self.analyze_with_huggingface('', {'text': text})
-                        predicted_threat = prediction.get('is_threat', False)
-                        
-                        if predicted_threat == expected_label:
-                            correct += 1
-                        total += 1
-                        
-                    except Exception as e:
-                        logger.error(f"Erreur lors du test avec {model_name}: {e}")
-                        continue
-                
-                if total > 0:
-                    accuracy = correct / total
-                    results[model_name] = {
-                        'accuracy': accuracy,
-                        'correct_predictions': correct,
-                        'total_predictions': total
-                    }
+            correct_predictions = 0
+            total_predictions = len(test_data)
             
-            return results
+            for item in test_data:
+                # Simuler une prédiction
+                prediction = await self.analyze_with_huggingface(
+                    item.get('file_path', ''),
+                    item.get('process_info', {})
+                )
+                
+                expected = item.get('is_threat', False)
+                predicted = prediction.get('is_threat', False)
+                
+                if expected == predicted:
+                    correct_predictions += 1
+            
+            accuracy = correct_predictions / total_predictions if total_predictions > 0 else 0
+            
+            return {
+                'accuracy': accuracy,
+                'total_tests': total_predictions,
+                'correct_predictions': correct_predictions,
+                'performance_timestamp': datetime.now().isoformat()
+            }
             
         except Exception as e:
             logger.error(f"Erreur lors du test de performance: {e}")

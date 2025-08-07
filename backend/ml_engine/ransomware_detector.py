@@ -5,9 +5,9 @@ RansomGuard AI - Hackathon Togo IT Days 2025
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
+from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 import joblib
@@ -67,19 +67,20 @@ class RansomwareDetector:
     
     def _create_neural_network(self):
         """Créer un réseau de neurones pour la détection"""
-        model = tf.keras.Sequential([
-            tf.keras.layers.Dense(64, activation='relu', input_shape=(len(self.features),)),
-            tf.keras.layers.Dropout(0.3),
-            tf.keras.layers.Dense(32, activation='relu'),
-            tf.keras.layers.Dropout(0.2),
-            tf.keras.layers.Dense(16, activation='relu'),
-            tf.keras.layers.Dense(1, activation='sigmoid')
-        ])
-        
-        model.compile(
-            optimizer='adam',
-            loss='binary_crossentropy',
-            metrics=['accuracy']
+        model = MLPClassifier(
+            hidden_layer_sizes=(64, 32, 16),
+            activation='relu',
+            solver='adam',
+            alpha=0.001,
+            batch_size='auto',
+            learning_rate='adaptive',
+            learning_rate_init=0.001,
+            max_iter=1000,
+            shuffle=True,
+            random_state=42,
+            early_stopping=True,
+            validation_fraction=0.1,
+            n_iter_no_change=10
         )
         
         return model
@@ -212,15 +213,14 @@ class RansomwareDetector:
             
             # Prédictions de chaque modèle
             for name, model in self.models.items():
-                if name == 'neural_network':
-                    # Pour le réseau de neurones
-                    prediction = model.predict(features_scaled)[0][0]
-                else:
-                    # Pour les modèles scikit-learn
+                try:
+                    # Pour tous les modèles scikit-learn (y compris MLPClassifier)
                     prediction = model.predict_proba(features_scaled)[0][1]
-                
-                predictions[name] = prediction
-                ensemble_score += prediction
+                    predictions[name] = prediction
+                    ensemble_score += prediction
+                except Exception as e:
+                    logger.error(f"Erreur avec le modèle {name}: {e}")
+                    predictions[name] = 0.0
             
             # Score d'ensemble (moyenne)
             ensemble_score /= len(self.models)

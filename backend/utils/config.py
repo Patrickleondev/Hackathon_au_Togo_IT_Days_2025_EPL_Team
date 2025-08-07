@@ -5,85 +5,82 @@ Hackathon Togo IT Days 2025
 
 import os
 from typing import Optional
-from pydantic import BaseSettings
+from pydantic import BaseModel
 
-class Settings(BaseSettings):
+class Settings:
     """Configuration de l'application"""
     
-    # Informations de base
-    APP_NAME: str = "RansomGuard AI"
-    APP_VERSION: str = "1.0.0"
-    APP_DESCRIPTION: str = "Protection intelligente contre les ransomware avec IA"
-    
-    # Configuration du serveur
-    HOST: str = "0.0.0.0"
-    PORT: int = 8000
-    DEBUG: bool = False
-    
-    # Configuration de la base de données
-    DATABASE_URL: str = "sqlite:///./ransomguard.db"
-    
-    # Configuration de sécurité
-    SECRET_KEY: str = "your-secret-key-here-change-in-production"
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    
-    # Configuration IA/ML
-    MODEL_PATH: str = "models/"
-    CONFIDENCE_THRESHOLD: float = 0.7
-    MAX_FILE_SIZE: int = 100 * 1024 * 1024  # 100MB
-    SCAN_TIMEOUT: int = 300  # 5 minutes
-    
-    # Configuration du monitoring
-    MONITORING_INTERVAL: int = 1  # secondes
-    MAX_PROCESS_HISTORY: int = 100
-    MAX_FILE_HISTORY: int = 50
-    MAX_NETWORK_HISTORY: int = 1000
-    
-    # Configuration des alertes
-    ALERT_RETENTION_DAYS: int = 30
-    MAX_ALERTS_PER_HOUR: int = 100
-    
-    # Configuration des scans
-    QUICK_SCAN_LIMIT: int = 1000
-    FULL_SCAN_LIMIT: int = 10000
-    CUSTOM_SCAN_LIMIT: int = 5000
-    
-    # Configuration des langues
-    DEFAULT_LANGUAGE: str = "fr"
-    SUPPORTED_LANGUAGES: list = ["fr", "en", "es"]
-    
-    # Configuration des logs
-    LOG_LEVEL: str = "INFO"
-    LOG_FILE: str = "logs/ransomguard.log"
-    LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    
-    # Configuration des performances
-    MAX_CONCURRENT_SCANS: int = 3
-    MAX_CONCURRENT_DOWNLOADS: int = 5
-    CACHE_TTL: int = 3600  # 1 heure
-    
-    # Configuration de la quarantaine
-    QUARANTINE_DIR: str = "quarantine/"
-    QUARANTINE_MAX_SIZE: int = 1024 * 1024 * 1024  # 1GB
-    
-    # Configuration des modèles IA
-    ENABLE_RANDOM_FOREST: bool = True
-    ENABLE_SVM: bool = True
-    ENABLE_NEURAL_NETWORK: bool = True
-    
-    # Configuration des métriques
-    ENABLE_METRICS: bool = True
-    METRICS_INTERVAL: int = 60  # secondes
-    
-    # Configuration de l'optimisation énergétique
-    LOW_POWER_MODE: bool = False
-    CPU_THROTTLE_THRESHOLD: float = 0.8
-    MEMORY_THROTTLE_THRESHOLD: float = 0.9
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    def __init__(self):
+        # Informations de base
+        self.APP_NAME: str = "RansomGuard AI"
+        self.APP_VERSION: str = "1.0.0"
+        self.APP_DESCRIPTION: str = "Protection intelligente contre les ransomware avec IA"
+        
+        # Configuration du serveur
+        self.HOST: str = "0.0.0.0"
+        self.PORT: int = 8000
+        self.DEBUG: bool = False
+        
+        # Configuration de la base de données
+        self.DATABASE_URL: str = "sqlite:///./ransomguard.db"
+        
+        # Configuration de sécurité
+        self.SECRET_KEY: str = "your-secret-key-here-change-in-production"
+        self.ALGORITHM: str = "HS256"
+        self.ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+        
+        # Configuration IA/ML
+        self.MODEL_PATH: str = "models/"
+        self.CONFIDENCE_THRESHOLD: float = 0.7
+        self.MAX_FILE_SIZE: int = 100 * 1024 * 1024  # 100MB
+        self.SCAN_TIMEOUT: int = 300  # 5 minutes
+        
+        # Configuration du monitoring
+        self.MONITORING_INTERVAL: int = 1  # secondes
+        self.MAX_PROCESS_HISTORY: int = 100
+        self.MAX_FILE_HISTORY: int = 50
+        self.MAX_NETWORK_HISTORY: int = 1000
+        
+        # Configuration des alertes
+        self.ALERT_RETENTION_DAYS: int = 30
+        self.MAX_ALERTS_PER_HOUR: int = 100
+        
+        # Configuration des scans
+        self.QUICK_SCAN_LIMIT: int = 1000
+        self.FULL_SCAN_LIMIT: int = 10000
+        self.CUSTOM_SCAN_LIMIT: int = 5000
+        
+        # Configuration des langues
+        self.DEFAULT_LANGUAGE: str = "fr"
+        self.SUPPORTED_LANGUAGES: list = ["fr", "en", "es"]
+        
+        # Configuration des logs
+        self.LOG_LEVEL: str = "INFO"
+        self.LOG_FILE: str = "logs/ransomguard.log"
+        self.LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        
+        # Configuration des performances
+        self.MAX_CONCURRENT_SCANS: int = 3
+        self.MAX_CONCURRENT_DOWNLOADS: int = 5
+        self.CACHE_TTL: int = 3600  # 1 heure
+        
+        # Configuration de la quarantaine
+        self.QUARANTINE_DIR: str = "quarantine/"
+        self.QUARANTINE_MAX_SIZE: int = 1024 * 1024 * 1024  # 1GB
+        
+        # Configuration des modèles IA
+        self.ENABLE_RANDOM_FOREST: bool = True
+        self.ENABLE_SVM: bool = True
+        self.ENABLE_NEURAL_NETWORK: bool = True
+        
+        # Configuration des métriques
+        self.ENABLE_METRICS: bool = True
+        self.METRICS_INTERVAL: int = 60  # secondes
+        
+        # Configuration de l'optimisation énergétique
+        self.LOW_POWER_MODE: bool = False
+        self.CPU_THROTTLE_THRESHOLD: float = 0.8
+        self.MEMORY_THROTTLE_THRESHOLD: float = 0.9
 
 # Instance globale des paramètres
 settings = Settings()
