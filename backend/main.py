@@ -11,11 +11,13 @@ from pydantic import BaseModel
 import uvicorn
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import os
 import tempfile
 import shutil
+from typing import Dict, Any, List
+import psutil
 
 from ml_engine.ransomware_detector import RansomwareDetector
 from ml_engine.hybrid_detector import HybridDetector
@@ -23,6 +25,7 @@ from ml_engine.advanced_detector import AdvancedHuggingFaceDetector
 from ml_engine.system_monitor import SystemMonitor
 from ml_engine.model_loader import get_model_loader
 from utils.config import settings
+from utils.i18n import i18n
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
@@ -130,15 +133,35 @@ async def root():
 async def get_system_status():
     """Obtenir le statut du système"""
     try:
-        # Retourner des données de base pour que le frontend fonctionne
+        # Utiliser le vrai monitoring système
+        system_monitor = SystemMonitor()
+        
+        # Obtenir les statistiques système réelles
+        cpu_percent = psutil.cpu_percent(interval=1)
+        memory = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        
+        # Démarrer le monitoring s'il n'est pas déjà actif
+        if not system_monitor.is_monitoring:
+            await system_monitor.start_monitoring()
+        
+        # Obtenir les menaces détectées
+        threats_count = len(detector.detected_threats)
+        
+        # Calculer les fichiers protégés (estimation basée sur les scans)
+        files_protected = await estimate_protected_files()
+        
+        # Vérifier l'état du système hybride
+        hybrid_active = hybrid_detector.initialized
+        
         return SystemStatus(
             status="active",
-            threats_detected=0,
-            files_protected=0,
+            threats_detected=threats_count,
+            files_protected=files_protected,
             last_scan=datetime.now(),
-            cpu_usage=5.0,
-            memory_usage=45.0,
-            hybrid_system_active=True
+            cpu_usage=cpu_percent,
+            memory_usage=memory.percent,
+            hybrid_system_active=hybrid_active
         )
     except Exception as e:
         logger.error(f"Erreur lors de la récupération du statut: {e}")
@@ -148,8 +171,71 @@ async def get_system_status():
 async def get_threats():
     """Obtenir la liste des menaces détectées"""
     try:
-        # Retourner une liste vide pour que le frontend fonctionne
-        return {"threats": [], "count": 0}
+        # Obtenir les menaces du détecteur principal
+        detected_threats = detector.detected_threats
+        
+        # Obtenir les activités suspectes du système de monitoring
+        system_monitor = SystemMonitor()
+        suspicious_activities = system_monitor.suspicious_activities
+        
+        # Formater les menaces pour le frontend
+        threats_list = []
+        
+        # Ajouter les menaces détectées par l'IA
+        for i, threat in enumerate(detected_threats):
+            threat_type_translated = i18n.translate_threat_type(threat.get("threat_type", "unknown"))
+            severity_translated = i18n.translate_severity(threat.get("severity", "medium"))
+            
+            threats_list.append({
+                "id": f"threat_{i}",
+                "type": threat.get("threat_type", "unknown"),
+                "type_translated": threat_type_translated,
+                "severity": threat.get("severity", "medium"),
+                "severity_translated": severity_translated,
+                "file_path": threat.get("file_path", "N/A"),
+                "description": threat.get("description", i18n.t("threats.threat_detected")),
+                "confidence": threat.get("confidence", 0.5),
+                "timestamp": threat.get("timestamp", datetime.now().isoformat()),
+                "status": "detected",
+                "status_translated": i18n.t("threats.detected"),
+                "source": "ml_detector"
+            })
+        
+        # Ajouter les activités suspectes du monitoring
+        for i, activity in enumerate(suspicious_activities):
+            activity_type = activity.get("activity_type", "suspicious_behavior")
+            activity_type_translated = i18n.translate_threat_type(activity_type)
+            severity_translated = i18n.translate_severity(activity.get("severity", "low"))
+            
+            threats_list.append({
+                "id": f"activity_{i}",
+                "type": activity_type,
+                "type_translated": activity_type_translated,
+                "severity": activity.get("severity", "low"),
+                "severity_translated": severity_translated,
+                "file_path": activity.get("file_path", "N/A"),
+                "description": activity.get("description", i18n.t("threats.suspicious_activity")),
+                "confidence": activity.get("risk_score", 0.3),
+                "timestamp": activity.get("timestamp", datetime.now().isoformat()),
+                "status": "monitoring",
+                "status_translated": i18n.t("threats.monitoring"),
+                "source": "system_monitor"
+            })
+        
+        # Simulation de quelques menaces types pour la démo si aucune menace réelle
+        if len(threats_list) == 0:
+            sample_threats = await generate_sample_threats()
+            threats_list.extend(sample_threats)
+        
+        # Trier par timestamp (plus récentes en premier)
+        threats_list.sort(key=lambda x: x["timestamp"], reverse=True)
+        
+        return {
+            "threats": threats_list[:50],  # Limiter à 50 menaces
+            "count": len(threats_list),
+            "active_monitoring": system_monitor.is_monitoring,
+            "last_update": datetime.now().isoformat()
+        }
     except Exception as e:
         logger.error(f"Erreur lors de la récupération des menaces: {e}")
         raise HTTPException(status_code=500, detail="Erreur interne du serveur")
@@ -160,15 +246,29 @@ async def start_scan(scan_request: ScanRequest, background_tasks: BackgroundTask
     try:
         logger.info(f"🚀 Démarrage du scan: {scan_request.scan_type}")
         
+        # Déterminer les chemins de scan basés sur le type
+        if not scan_request.target_paths:
+            scan_request.target_paths = get_default_scan_paths(scan_request.scan_type)
+        
         # Ajouter le scan aux tâches en arrière-plan
         if scan_request.use_advanced_detection:
-            background_tasks.add_task(hybrid_detector.perform_hybrid_scan, scan_request.scan_type, scan_request.target_paths)
+            background_tasks.add_task(
+                perform_advanced_scan, 
+                scan_request.scan_type, 
+                scan_request.target_paths
+            )
         else:
-            background_tasks.add_task(detector.perform_scan, scan_request.scan_type, scan_request.target_paths)
+            background_tasks.add_task(
+                perform_basic_scan, 
+                scan_request.scan_type, 
+                scan_request.target_paths
+            )
         
         return {
             "message": "Scan démarré avec succès",
             "scan_type": scan_request.scan_type,
+            "target_paths": scan_request.target_paths,
+            "advanced_detection": scan_request.use_advanced_detection,
             "status": "running",
             "timestamp": datetime.now().isoformat()
         }
@@ -199,46 +299,110 @@ async def analyze_file_upload(file: UploadFile = File(...)):
             temp_path = temp_file.name
         
         try:
-            # Analyse simplifiée basée sur l'extension et la taille
-            file_size = os.path.getsize(temp_path)
-            file_ext = os.path.splitext(file.filename)[1].lower()
-            
-            # Détecter les menaces basées sur l'extension
-            threat_score = 0.0
-            threat_type = "unknown"
-            severity = "low"
-            
-            # Extensions suspectes
-            suspicious_extensions = ['.exe', '.dll', '.bat', '.cmd', '.ps1', '.vbs', '.js']
-            if file_ext in suspicious_extensions:
-                threat_score = 0.6
-                threat_type = "suspicious_executable"
-                severity = "medium"
-            
-            # Taille suspecte (très petit ou très grand)
-            if file_size < 100 or file_size > 100 * 1024 * 1024:  # < 100B ou > 100MB
-                threat_score += 0.2
-            
-            # Normaliser le score
-            threat_score = min(threat_score, 1.0)
-            
-            # Déterminer si c'est une menace
-            is_threat = threat_score > 0.5
-            
-            result = {
-                "is_threat": is_threat,
-                "confidence": threat_score,
-                "threat_type": threat_type,
-                "severity": severity,
-                "description": f"Analyse basée sur l'extension {file_ext} et la taille {file_size} bytes",
-                "file_info": {
-                    "filename": file.filename,
-                    "size": file_size,
-                    "extension": file_ext
-                },
-                "analysis_method": "basic_analysis",
-                "timestamp": datetime.now().isoformat()
-            }
+            # Utiliser le détecteur hybride pour une analyse complète
+            if hybrid_detector.initialized:
+                # Analyse hybride avec les vrais modèles ML
+                analysis_result = await hybrid_detector.analyze_file_hybrid(
+                    temp_path, 
+                    {"filename": file.filename, "upload_source": "web_interface"}
+                )
+                
+                # Extraire les informations importantes
+                is_threat = analysis_result.get('is_threat', False)
+                confidence = analysis_result.get('confidence', 0.0)
+                threat_type = analysis_result.get('threat_type', 'unknown')
+                severity = analysis_result.get('severity', 'low')
+                
+                # Ajouter des informations sur le fichier
+                file_size = os.path.getsize(temp_path)
+                file_ext = os.path.splitext(file.filename)[1].lower()
+                
+                # Analyse de l'entropie pour détecter la compression/chiffrement
+                entropy = await detector.extract_features(temp_path, {})
+                
+                result = {
+                    "is_threat": is_threat,
+                    "confidence": confidence,
+                    "threat_type": threat_type,
+                    "severity": severity,
+                    "description": analysis_result.get('description', 'Analyse hybride ML + NLP'),
+                    "file_info": {
+                        "filename": file.filename,
+                        "size": file_size,
+                        "extension": file_ext,
+                        "entropy": float(entropy[0]) if len(entropy) > 0 else 0.0
+                    },
+                    "analysis_method": "hybrid_ml_analysis",
+                    "models_used": analysis_result.get('models_used', ['traditional', 'huggingface']),
+                    "detection_details": analysis_result.get('detailed_results', {}),
+                    "timestamp": datetime.now().isoformat()
+                }
+            else:
+                # Fallback à l'analyse améliorée basique si les modèles ne sont pas chargés
+                file_size = os.path.getsize(temp_path)
+                file_ext = os.path.splitext(file.filename)[1].lower()
+                
+                # Calculer l'entropie du fichier pour détecter le chiffrement
+                entropy = await calculate_file_entropy(temp_path)
+                
+                # Analyse des signatures de fichiers
+                file_signature = await analyze_file_signature(temp_path)
+                
+                threat_score = 0.0
+                threat_type = "unknown"
+                severity = "low"
+                
+                # Extensions suspectes avec scores plus précis
+                suspicious_extensions = {
+                    '.exe': 0.7, '.dll': 0.6, '.bat': 0.8, '.cmd': 0.8, 
+                    '.ps1': 0.7, '.vbs': 0.8, '.js': 0.5, '.jar': 0.6,
+                    '.scr': 0.9, '.pif': 0.9, '.com': 0.7
+                }
+                
+                if file_ext in suspicious_extensions:
+                    threat_score = suspicious_extensions[file_ext]
+                    threat_type = "suspicious_executable"
+                    severity = "medium" if threat_score < 0.7 else "high"
+                
+                # Vérifier l'entropie (fichiers chiffrés/compressés)
+                if entropy > 7.5:  # Entropie élevée = possiblement chiffré
+                    threat_score += 0.3
+                    threat_type = "encrypted_content" if threat_type == "unknown" else threat_type
+                
+                # Vérifier la signature du fichier
+                if file_signature.get('mismatch', False):
+                    threat_score += 0.4
+                    threat_type = "file_signature_mismatch"
+                    severity = "high"
+                
+                # Taille suspecte
+                if file_size < 100:
+                    threat_score += 0.2  # Fichier très petit
+                elif file_size > 500 * 1024 * 1024:  # > 500MB
+                    threat_score += 0.1
+                
+                # Normaliser le score
+                threat_score = min(threat_score, 1.0)
+                
+                # Déterminer si c'est une menace
+                is_threat = threat_score > 0.5
+                
+                result = {
+                    "is_threat": is_threat,
+                    "confidence": threat_score,
+                    "threat_type": threat_type,
+                    "severity": severity,
+                    "description": f"Analyse avancée: entropie={entropy:.2f}, signature={'valide' if not file_signature.get('mismatch') else 'suspecte'}",
+                    "file_info": {
+                        "filename": file.filename,
+                        "size": file_size,
+                        "extension": file_ext,
+                        "entropy": entropy,
+                        "signature": file_signature
+                    },
+                    "analysis_method": "enhanced_static_analysis",
+                    "timestamp": datetime.now().isoformat()
+                }
             
             return {
                 "success": True,
@@ -399,8 +563,374 @@ async def health_check():
             "timestamp": datetime.now().isoformat()
         }
 
+@app.get("/api/languages")
+async def get_available_languages():
+    """Obtenir les langues disponibles"""
+    try:
+        languages = i18n.get_available_languages()
+        current_language = i18n.get_language()
+        
+        return {
+            "languages": languages,
+            "current": current_language,
+            "success": True
+        }
+    except Exception as e:
+        logger.error(f"Erreur lors de la récupération des langues: {e}")
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur")
+
+@app.post("/api/language")
+async def set_language(language_request: dict):
+    """Changer la langue de l'interface"""
+    try:
+        language_code = language_request.get("language", "fr")
+        
+        if i18n.set_language(language_code):
+            return {
+                "success": True,
+                "language": language_code,
+                "message": i18n.t("ui.language_changed", language=language_code)
+            }
+        else:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Langue non supportée: {language_code}"
+            )
+    except Exception as e:
+        logger.error(f"Erreur lors du changement de langue: {e}")
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur")
+
 # Configuration des fichiers statiques
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+async def calculate_file_entropy(file_path: str) -> float:
+    """Calculer l'entropie d'un fichier pour détecter le chiffrement"""
+    try:
+        import math
+        from collections import Counter
+        
+        with open(file_path, 'rb') as f:
+            # Lire par chunks pour les gros fichiers
+            data = f.read(1024 * 1024)  # Lire 1MB max
+            
+        if not data:
+            return 0.0
+            
+        # Compter les fréquences des bytes
+        byte_counts = Counter(data)
+        file_size = len(data)
+        
+        # Calculer l'entropie
+        entropy = 0.0
+        for count in byte_counts.values():
+            probability = count / file_size
+            if probability > 0:
+                entropy -= probability * math.log2(probability)
+                
+        return entropy
+    except Exception as e:
+        logger.error(f"Erreur calcul entropie: {e}")
+        return 0.0
+
+async def analyze_file_signature(file_path: str) -> Dict[str, Any]:
+    """Analyser la signature d'un fichier pour détecter les incohérences"""
+    try:
+        # Signatures de fichiers courantes (magic numbers)
+        signatures = {
+            b'\x4D\x5A': '.exe',          # PE executable
+            b'\x50\x4B': '.zip',          # ZIP archive
+            b'\x25\x50\x44\x46': '.pdf', # PDF
+            b'\x89\x50\x4E\x47': '.png', # PNG
+            b'\xFF\xD8\xFF': '.jpg',      # JPEG
+            b'\x47\x49\x46': '.gif',     # GIF
+        }
+        
+        with open(file_path, 'rb') as f:
+            header = f.read(8)
+            
+        detected_type = None
+        for sig, ext in signatures.items():
+            if header.startswith(sig):
+                detected_type = ext
+                break
+                
+        actual_ext = os.path.splitext(file_path)[1].lower()
+        
+        return {
+            "detected_type": detected_type,
+            "actual_extension": actual_ext,
+            "mismatch": detected_type is not None and detected_type != actual_ext,
+            "header_bytes": header.hex()
+        }
+    except Exception as e:
+        logger.error(f"Erreur analyse signature: {e}")
+        return {"error": str(e), "mismatch": False}
+
+async def estimate_protected_files() -> int:
+    """Estimer le nombre de fichiers protégés basé sur les scans récents"""
+    try:
+        # Obtenir les statistiques du détecteur
+        stats = await detector.get_statistics()
+        scanned_files = stats.get('files_scanned', 0)
+        
+        # Si aucun scan n'a été effectué, scanner quelques répertoires système
+        if scanned_files == 0:
+            home_dir = os.path.expanduser("~")
+            common_dirs = [
+                home_dir,
+                "/tmp",
+                "/var/tmp"
+            ]
+            
+            total_files = 0
+            for directory in common_dirs:
+                if os.path.exists(directory):
+                    try:
+                        for root, dirs, files in os.walk(directory):
+                            total_files += len(files)
+                            # Limiter pour éviter les scans trop longs
+                            if total_files > 10000:
+                                break
+                        if total_files > 10000:
+                            break
+                    except PermissionError:
+                        continue
+            
+            return min(total_files, 50000)  # Plafonner à 50k
+        
+        return scanned_files
+    except Exception as e:
+        logger.error(f"Erreur estimation fichiers protégés: {e}")
+        return 0
+
+async def generate_sample_threats() -> List[Dict[str, Any]]:
+    """Générer des exemples de menaces pour la démonstration"""
+    sample_threats = [
+        {
+            "id": "sample_1",
+            "type": "ransomware_detected",
+            "severity": "high",
+            "file_path": "/tmp/suspicious_file.exe",
+            "description": "Comportement de chiffrement détecté - fichier potentiellement malveillant",
+            "confidence": 0.85,
+            "timestamp": (datetime.now() - timedelta(minutes=5)).isoformat(),
+            "status": "quarantined",
+            "source": "demo"
+        },
+        {
+            "id": "sample_2", 
+            "type": "suspicious_network_activity",
+            "severity": "medium",
+            "file_path": "N/A",
+            "description": "Connexions réseau suspectes détectées vers des serveurs inconnus",
+            "confidence": 0.67,
+            "timestamp": (datetime.now() - timedelta(minutes=15)).isoformat(),
+            "status": "monitoring",
+            "source": "demo"
+        },
+        {
+            "id": "sample_3",
+            "type": "file_signature_mismatch", 
+            "severity": "high",
+            "file_path": "/home/user/document.pdf.exe",
+            "description": "Extension de fichier ne correspond pas au contenu réel",
+            "confidence": 0.92,
+            "timestamp": (datetime.now() - timedelta(hours=1)).isoformat(),
+            "status": "detected",
+            "source": "demo"
+        }
+    ]
+    
+    return sample_threats
+
+def get_default_scan_paths(scan_type: str) -> List[str]:
+    """Obtenir les chemins par défaut selon le type de scan"""
+    if scan_type == "quick":
+        return [
+            os.path.expanduser("~/Downloads"),
+            os.path.expanduser("~/Desktop"),
+            "/tmp",
+            "/var/tmp"
+        ]
+    elif scan_type == "full":
+        return [
+            os.path.expanduser("~"),
+            "/usr",
+            "/opt",
+            "/tmp",
+            "/var"
+        ]
+    elif scan_type == "network":
+        # Pour le scan réseau, retourner les interfaces réseau
+        import netifaces
+        interfaces = []
+        try:
+            for interface in netifaces.interfaces():
+                if interface != 'lo':  # Exclure loopback
+                    interfaces.append(interface)
+        except:
+            interfaces = ["eth0", "wlan0"]  # Fallback
+        return interfaces
+    else:
+        return [os.path.expanduser("~")]
+
+async def perform_basic_scan(scan_type: str, target_paths: List[str]):
+    """Effectuer un scan basique du système"""
+    try:
+        logger.info(f"Démarrage du scan basique: {scan_type}")
+        
+        if scan_type == "network":
+            await perform_network_scan(target_paths)
+        else:
+            await perform_file_system_scan(target_paths)
+            
+    except Exception as e:
+        logger.error(f"Erreur lors du scan basique: {e}")
+
+async def perform_advanced_scan(scan_type: str, target_paths: List[str]):
+    """Effectuer un scan avancé avec le système hybride"""
+    try:
+        logger.info(f"Démarrage du scan avancé: {scan_type}")
+        
+        if scan_type == "network":
+            await perform_network_scan(target_paths, advanced=True)
+        else:
+            # Utiliser le détecteur hybride pour l'analyse
+            await hybrid_detector.perform_hybrid_scan(scan_type, target_paths)
+            
+    except Exception as e:
+        logger.error(f"Erreur lors du scan avancé: {e}")
+
+async def perform_file_system_scan(target_paths: List[str]):
+    """Scanner le système de fichiers pour détecter les menaces"""
+    scanned_files = 0
+    threats_found = 0
+    
+    for path in target_paths:
+        if not os.path.exists(path):
+            logger.warning(f"Chemin inexistant: {path}")
+            continue
+            
+        logger.info(f"Scan du répertoire: {path}")
+        
+        try:
+            for root, dirs, files in os.walk(path):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    scanned_files += 1
+                    
+                    # Analyser le fichier
+                    try:
+                        # Vérification basique des extensions suspectes
+                        _, ext = os.path.splitext(file)
+                        if ext.lower() in ['.exe', '.dll', '.bat', '.cmd', '.ps1', '.vbs', '.scr']:
+                            logger.warning(f"Fichier suspect détecté: {file_path}")
+                            
+                            # Ajouter à la liste des menaces détectées
+                            threat = {
+                                "file_path": file_path,
+                                "threat_type": "suspicious_executable",
+                                "severity": "medium",
+                                "confidence": 0.6,
+                                "description": f"Fichier exécutable suspect: {ext}",
+                                "timestamp": datetime.now().isoformat()
+                            }
+                            detector.detected_threats.append(threat)
+                            threats_found += 1
+                            
+                    except (PermissionError, OSError):
+                        continue
+                    
+                    # Limiter pour éviter les scans trop longs
+                    if scanned_files > 10000:
+                        break
+                        
+                if scanned_files > 10000:
+                    break
+                    
+        except PermissionError:
+            logger.warning(f"Permission refusée pour: {path}")
+            continue
+    
+    logger.info(f"Scan terminé: {scanned_files} fichiers scannés, {threats_found} menaces détectées")
+
+async def perform_network_scan(interfaces: List[str], advanced: bool = False):
+    """Scanner le réseau pour détecter les activités suspectes"""
+    try:
+        import socket
+        import subprocess
+        import re
+        
+        logger.info(f"Démarrage du scan réseau sur les interfaces: {interfaces}")
+        
+        # Scanner les connexions réseau actives
+        connections = psutil.net_connections(kind='inet')
+        suspicious_connections = []
+        
+        for conn in connections:
+            if conn.status == 'ESTABLISHED' and conn.raddr:
+                remote_ip = conn.raddr.ip
+                remote_port = conn.raddr.port
+                
+                # Vérifier si l'IP est suspecte (exemple: IP privées vers ports non standards)
+                if advanced:
+                    risk_score = await analyze_connection_risk(remote_ip, remote_port)
+                    if risk_score > 0.5:
+                        suspicious_connections.append({
+                            "remote_ip": remote_ip,
+                            "remote_port": remote_port,
+                            "risk_score": risk_score,
+                            "process": conn.pid
+                        })
+        
+        # Scanner les ports ouverts
+        open_ports = []
+        common_ports = [21, 22, 23, 25, 53, 80, 110, 443, 993, 995, 1433, 3389, 5432, 5900]
+        
+        for port in common_ports:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1)
+            result = sock.connect_ex(('127.0.0.1', port))
+            if result == 0:
+                open_ports.append(port)
+            sock.close()
+        
+        # Ajouter les résultats au monitoring
+        system_monitor = SystemMonitor()
+        network_activity = {
+            "activity_type": "network_scan_results",
+            "suspicious_connections": suspicious_connections,
+            "open_ports": open_ports,
+            "severity": "medium" if suspicious_connections else "low",
+            "description": f"Scan réseau: {len(suspicious_connections)} connexions suspectes, {len(open_ports)} ports ouverts",
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        system_monitor.suspicious_activities.append(network_activity)
+        
+        logger.info(f"Scan réseau terminé: {len(suspicious_connections)} connexions suspectes, {len(open_ports)} ports ouverts")
+        
+    except Exception as e:
+        logger.error(f"Erreur lors du scan réseau: {e}")
+
+async def analyze_connection_risk(ip: str, port: int) -> float:
+    """Analyser le risque d'une connexion réseau"""
+    risk_score = 0.0
+    
+    # IPs privées se connectant vers l'extérieur sur des ports non standards
+    if not ip.startswith(('192.168.', '10.', '172.')):
+        risk_score += 0.3
+    
+    # Ports suspects
+    suspicious_ports = [4444, 5555, 6666, 7777, 8888, 9999, 1234, 31337]
+    if port in suspicious_ports:
+        risk_score += 0.5
+    
+    # Ports non standards élevés
+    if port > 49152:
+        risk_score += 0.2
+    
+    return min(risk_score, 1.0)
 
 if __name__ == "__main__":
     uvicorn.run(

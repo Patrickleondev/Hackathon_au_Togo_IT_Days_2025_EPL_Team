@@ -8,6 +8,7 @@ sqlalchemy==2.0.23
 
 # Monitoring système
 psutil==5.9.6
+netifaces==0.11.0
 
 # Machine Learning - versions compatibles Python 3.12
 scikit-learn==1.3.2
