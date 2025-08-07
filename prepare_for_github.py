@@ -27,7 +27,7 @@ def clean_project():
     
     for dir_path in dirs_to_clean:
         if os.path.exists(dir_path):
-            print(f"🗑️ Suppression de {dir_path}")
+            print(f" Suppression de {dir_path}")
             shutil.rmtree(dir_path)
     
     # Créer les dossiers nécessaires
@@ -35,11 +35,11 @@ def clean_project():
     os.makedirs("backend/logs", exist_ok=True)
     os.makedirs("test_suite/results", exist_ok=True)
     
-    print("✅ Nettoyage terminé")
+    print(" Nettoyage terminé")
 
 def create_placeholder_files():
     """Créer des fichiers placeholder"""
-    print("📝 Création des fichiers placeholder...")
+    print(" Création des fichiers placeholder...")
     
     # Placeholder pour les modèles
     models_placeholder = """# Dossier des Modèles IA
@@ -87,14 +87,14 @@ Les résultats des tests seront générés ici lors de l'exécution des scripts 
     with open("test_suite/results/README.md", "w", encoding="utf-8") as f:
         f.write(test_results_placeholder)
     
-    print("✅ Fichiers placeholder créés")
+    print(" Fichiers placeholder créés")
 
 def update_documentation():
     """Mettre à jour la documentation"""
-    print("📚 Mise à jour de la documentation...")
+    print(" Mise à jour de la documentation...")
     
     # Créer un fichier d'installation rapide
-    quick_install = """# 🚀 Installation Rapide
+    quick_install = """#  Installation Rapide
 
 ## Prérequis
 - Python 3.8+
@@ -129,56 +129,56 @@ python test_suite/test_advanced_detection.py
     with open("INSTALLATION_RAPIDE.md", "w", encoding="utf-8") as f:
         f.write(quick_install)
     
-    print("✅ Documentation mise à jour")
+    print(" Documentation mise à jour")
 
 def check_git_status():
     """Vérifier le statut Git"""
-    print("🔍 Vérification du statut Git...")
+    print(" Vérification du statut Git...")
     
     try:
         # Vérifier si c'est un repo Git
         result = subprocess.run(['git', 'status'], capture_output=True, text=True)
         if result.returncode == 0:
-            print("✅ Repository Git détecté")
+            print(" Repository Git détecté")
             
             # Afficher les fichiers modifiés
             result = subprocess.run(['git', 'status', '--porcelain'], capture_output=True, text=True)
             if result.stdout.strip():
-                print("📝 Fichiers modifiés:")
+                print(" Fichiers modifiés:")
                 print(result.stdout)
             else:
-                print("✅ Aucun fichier modifié")
+                print(" Aucun fichier modifié")
         else:
-            print("⚠️ Pas de repository Git détecté")
+            print(" Pas de repository Git détecté")
             
     except FileNotFoundError:
-        print("⚠️ Git non installé")
+        print(" Git non installé")
 
 def create_deployment_script():
     """Créer un script de déploiement"""
-    print("🚀 Création du script de déploiement...")
+    print(" Création du script de déploiement...")
     
     deploy_script = """#!/bin/bash
 # Script de déploiement pour le hackathon
 
-echo "🚀 Déploiement de RansomGuard AI..."
+echo " Déploiement de RansomGuard AI..."
 
 # Vérifier les prérequis
-echo "🔍 Vérification des prérequis..."
+echo " Vérification des prérequis..."
 python --version
 node --version
 npm --version
 
 # Installer les dépendances
-echo "📦 Installation des dépendances..."
+echo " Installation des dépendances..."
 pip install -r requirements.txt
 
 # Entraîner les modèles
-echo "🧠 Entraînement des modèles..."
+echo " Entraînement des modèles..."
 python train_models_for_hackathon.py
 
 # Démarrer le système
-echo "🎯 Démarrage du système..."
+echo " Démarrage du système..."
 python start_hackathon.py
 """
     
@@ -191,11 +191,11 @@ python start_hackathon.py
     except:
         pass
     
-    print("✅ Script de déploiement créé")
+    print(" Script de déploiement créé")
 
 def main():
     """Fonction principale"""
-    print("🎯 Préparation du projet pour GitHub")
+    print(" Préparation du projet pour GitHub")
     print("="*50)
     
     # 1. Nettoyer le projet

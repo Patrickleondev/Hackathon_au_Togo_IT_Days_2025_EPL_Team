@@ -20,4 +20,58 @@ le script va :
 - ✅ Sauvegarder tous les modèles
 - ✅ Créer un modèle frontend unifié
 
-Voulez-vous que je lance l'entraînement maintenant ou préférez-vous d'abord vérifier quelque chose ?
+
+
+Sortie : 
+
+
+============================================================
+🎯 RÉSUMÉ DE L'ENTRAÎNEMENT UNIFIÉ - HACKATHON
+============================================================
+✅ Entraînement unifié réussi!
+⏱️ Temps d'entraînement: 8.99 secondes
+
+🤖 MODÈLES ML:
+  • RF:
+    - Précision: 100.0%
+    - Rappel: 100.0%
+    - F1-Score: 100.0%
+    - Exactitude: 100.0%
+  • SVM:
+    - Précision: 100.0%
+    - Rappel: 77.4%
+    - F1-Score: 87.3%
+    - Exactitude: 89.0%
+  • NN:
+    - Précision: 48.7%
+    - Rappel: 100.0%
+    - F1-Score: 65.5%
+    - Exactitude: 48.7%
+
+🧠 MODÈLES NLP:
+
+🛡️ DÉTECTEUR D'ÉVASION:
+  • sandbox_evasion_detection: 95.0%
+  • antivirus_evasion_detection: 92.0%
+  • behavioral_evasion_detection: 88.0%
+  • anomaly_detection: 90.0%
+
+💾 Modèles sauvegardés dans: models/
+============================================================
+✅ Modèle frontend unifié créé avec succès!
+📁 Chemin: models/frontend_unified_model.pkl
+📊 Info: {'version': '2.0.0', 'models_count': 3, 'unified_system': True, 'hackathon_optimized': True}
+
+
+PS E:\Togo IT Days> 
+
+IA Avancée
+Modèles ML + NLP pour une détection précise
+
+Temps Réel
+Protection continue et monitoring 24/7
+
+Accessible
+Interface simple pour tous les utilisateurs
+
+RansomGuard AI - Hackathon Togo IT Days 2025 | Protection alimentée par l'Intelligence Artificielle

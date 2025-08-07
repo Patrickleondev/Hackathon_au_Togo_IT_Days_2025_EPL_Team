@@ -281,4 +281,3 @@ python test_single_executable.py "malware.exe"
 cat single_test_*.json
 ```
 
-Le système est maintenant prêt à détecter les exécutables malveillants avec une précision élevée ! 🛡️ 

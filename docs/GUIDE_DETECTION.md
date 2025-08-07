@@ -728,4 +728,3 @@ Ce système de détection multi-couches offre :
 - ✅ **Performance** : Optimisation automatique
 - ✅ **Évolutivité** : Ajout facile de nouvelles techniques
 
-Le système RansomGuard AI est conçu pour **détecter efficacement** tous types de menaces tout en **résistant aux techniques d'évasion** les plus avancées. 

@@ -144,10 +144,10 @@ def main():
         backend_process.wait()
         frontend_process.wait()
     except KeyboardInterrupt:
-        print("\n🛑 Arrêt du système...")
+        print("\n Arrêt du système...")
         backend_process.terminate()
         frontend_process.terminate()
-        print("✅ Système arrêté")
+        print(" Système arrêté")
 
 if __name__ == "__main__":
     main()

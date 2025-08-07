@@ -239,5 +239,3 @@ TRAINING_CONFIG = {
 - Monitoring intégré
 
 ---
-
-**🎉 Cette approche garantit une détection de ransomware moderne, performante et fiable pour RansomGuard AI !** 

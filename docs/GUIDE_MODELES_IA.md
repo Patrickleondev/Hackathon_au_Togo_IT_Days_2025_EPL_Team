@@ -636,4 +636,3 @@ Ce système multi-modèles offre :
 - ✅ **Spécialisation** : Chaque modèle a son domaine d'expertise
 - ✅ **Évolutivité** : Ajout facile de nouveaux modèles
 
-Le système RansomGuard AI est conçu pour être **maximalement efficace** tout en restant **compréhensible** pour tous les membres de l'équipe. 

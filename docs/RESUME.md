@@ -1,34 +1,34 @@
-# 🏆 RansomGuard AI - Résumé Hackathon TID 2025
+# 🏆 RansomGuard AI - Résumé 
 
-## 🎯 Système Complet et Prêt
+##  Système Complet et Prêt
 
-### ✅ Ce qui est Fait
+###  Ce qui est Fait
 
-#### 🧠 **Système IA Unifié**
+####  **Système IA Unifié**
 - **4 Modèles Hugging Face** : DistilBERT, RoBERTa, DialoGPT, CodeBERT
 - **3 Modèles ML Traditionnels** : Random Forest, SVM, Neural Network
 - **Détecteur d'Évasion** : Sandbox, Antivirus, Comportementale
 - **Système Hybride** : Combinaison intelligente de tous les modèles
 
-#### 🛡️ **Détection Avancée**
-- ✅ **Tous types de fichiers** : EXE, PDF, DOCX, etc.
-- ✅ **Évasion par nom** : bible.exe, netflix_gratuit.exe
-- ✅ **Extensions trompeuses** : document.pdf.exe
-- ✅ **Analyse comportementale** : Actions suspectes en temps réel
+####  **Détection Avancée**
+-  **Tous types de fichiers** : EXE, PDF, DOCX, etc.
+-  **Évasion par nom** : bible.exe, netflix_gratuit.exe
+-  **Extensions trompeuses** : document.pdf.exe
+-  **Analyse comportementale** : Actions suspectes en temps réel
 
-#### 🚀 **Démarrage Automatique**
+####  **Démarrage Automatique**
 - **Un seul script** : `python start_hackathon.py`
 - **Installation automatique** : Dépendances Python et Node.js
 - **Entraînement automatique** : Modèles IA optimisés
 - **Démarrage complet** : Backend + Frontend
 
-#### 📊 **Interface Moderne**
+####  **Interface Moderne**
 - **React + TypeScript** : Interface moderne et responsive
 - **Dashboard temps réel** : Monitoring en direct
 - **API FastAPI** : Documentation automatique
 - **Tests complets** : Suite de tests automatisés
 
-### 📁 **Structure du Projet**
+###  **Structure du Projet**
 
 ```
 Togo IT Days/
@@ -54,7 +54,7 @@ Togo IT Days/
 └── .gitignore             # Exclusion des modèles
 ```
 
-### 🎯 **Instructions pour l'Équipe**
+###  **l'Équipe**
 
 #### 1. **Installation Rapide**
 ```bash
@@ -83,36 +83,36 @@ python test_suite/test_advanced_detection.py
 python test_suite/test_naming_evasion.py
 ```
 
-### 🏆 **Points Clés pour la Démonstration**
+###  **Points Clés pour la Démonstration**
 
-#### ✅ **Avantages Techniques**
+####  **Avantages Techniques**
 - **Système unifié** : ML + NLP + Évasion
 - **Interface moderne** : React + Tailwind CSS
 - **API robuste** : FastAPI + Documentation
 - **Tests complets** : Suite de tests automatisés
 - **Documentation** : Guides détaillés
 
-#### ✅ **Innovation**
+####  **Innovation**
 - **Ensemble de modèles** : 4 modèles Hugging Face + 3 ML traditionnels
 - **Détection d'évasion** : Techniques avancées de contournement
 - **Traitement universel** : PDF, DOCX, EXE, etc.
 - **Performance optimisée** : < 2 secondes par fichier
 
-#### ✅ **Hackathon Ready**
+####  **Hackathon Ready**
 - **Démarrage automatique** : Un seul script
 - **Fallback robuste** : Système toujours opérationnel
 - **Documentation complète** : Guides et exemples
 - **Tests intégrés** : Validation automatique
 
-### 📊 **Performance Attendue**
+###  **Performance Attendue**
 
-- **Précision** : 95%+
-- **Rappel** : 92%+
-- **F1-Score** : 93%+
+- **Précision** : 
+- **Rappel** : 
+- **F1-Score** : 
 - **Temps de traitement** : < 2 secondes par fichier
 - **Taux de faux positifs** : < 3%
 
-### 🧠 **Modèles IA Utilisés**
+###  **Modèles IA Utilisés**
 
 #### 1. **Modèles Hugging Face**
 - **DistilBERT** : Robustesse et vitesse
@@ -130,22 +130,22 @@ python test_suite/test_naming_evasion.py
 - **Antivirus évasion** : Techniques de contournement
 - **Évasion comportementale** : Actions suspectes
 
-### 🛡️ **Fonctionnalités de Sécurité**
+###  **Fonctionnalités de Sécurité**
 
 #### Détection Avancée
-- ✅ **Analyse de fichiers** : EXE, PDF, DOCX, etc.
-- ✅ **Détection d'évasion** : Noms trompeurs, extensions doubles
-- ✅ **Analyse comportementale** : Actions suspectes
-- ✅ **Protection temps réel** : Monitoring continu
+-  **Analyse de fichiers** : EXE, PDF, DOCX, etc.
+-  **Détection d'évasion** : Noms trompeurs, extensions doubles
+-  **Analyse comportementale** : Actions suspectes
+-  **Protection temps réel** : Monitoring continu
 
 #### Types de Menaces Détectées
-- 🦠 **Ransomware** : Chiffrement de fichiers
-- 🕵️ **Spyware** : Surveillance clandestine
-- 🚪 **Backdoors** : Accès non autorisé
-- 🎭 **Trojans** : Logiciels malveillants déguisés
-- 🦠 **Virus** : Propagation automatique
+-  **Ransomware** : Chiffrement de fichiers
+-  **Spyware** : Surveillance clandestine
+-  **Backdoors** : Accès non autorisé
+-  **Trojans** : Logiciels malveillants déguisés
+-  **Virus** : Propagation automatique
 
-### 📚 **Documentation Disponible**
+###  **Documentation Disponible**
 
 - **README.md** : Guide complet d'installation et utilisation
 - **docs/GUIDE_DEMARRAGE_RAPIDE.md** : Démarrage ultra-rapide
@@ -153,7 +153,7 @@ python test_suite/test_naming_evasion.py
 - **test_suite/README.md** : Guide des tests
 - **INSTALLATION_RAPIDE.md** : Installation en 3 étapes
 
-### 🚨 **Dépannage Rapide**
+###  **Dépannage Rapide**
 
 #### Problème : Modèles non chargés
 ```bash
@@ -172,7 +172,7 @@ npm install
 npm start
 ```
 
-### 🎯 **Démonstration Hackathon**
+###  **Démonstration**
 
 #### 1. **Lancer le Système**
 ```bash
@@ -195,17 +195,6 @@ python start_hackathon.py
 - **Statistiques** : Métriques de performance
 - **Paramètres** : Configuration avancée
 
-### 📞 **Support Équipe**
 
-Pour toute question pendant le hackathon :
-- 📧 **Email** : [votre-email]
-- 💬 **Discord** : [votre-discord]
-- 📱 **WhatsApp** : [votre-whatsapp]
 
 ---
-
-## 🏆 **Le Système est Prêt pour le Hackathon !**
-
-**RansomGuard AI** - Protection intelligente contre les ransomware 🛡️
-
-**Innovation** + **Performance** + **Facilité d'utilisation** = **Victoire au Hackathon !** 🎉 

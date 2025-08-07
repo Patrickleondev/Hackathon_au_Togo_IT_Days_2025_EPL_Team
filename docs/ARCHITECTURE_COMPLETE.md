@@ -602,4 +602,3 @@ Cette architecture hybride multi-modèles offre :
 - ✅ **Évolutivité** : Ajout facile de nouveaux modèles
 - ✅ **Maintenabilité** : Code modulaire et documenté
 
-Le système RansomGuard AI est conçu pour être à la fois **performant** et **compréhensible**, permettant à tous les membres de l'équipe de contribuer efficacement au projet. 

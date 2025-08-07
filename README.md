@@ -1,22 +1,23 @@
-#  RansomGuard AI - Système de Détection de Ransomware
+# 🛡️ RansomGuard AI - Système de Détection Avancée
 
 ##  Hackathon Togo IT Days 2025
 
-Système de détection de ransomware intelligent utilisant l'IA.
+Système de détection de ransomware intelligent utilisant l'IA avancée avec une combinaison des  modèles Hugging Face, ML traditionnel et détection d'évasion.
+
 ##  Installation Rapide
 
 ### Prérequis
 
-- **Python 3.12**
-- **Node.js** (pour le frontend)
+- **Python 3.8+**
+- **Node.js 16+** (pour le frontend)
 - **Git**
 
 ### Installation
 
 ```bash
 # 1. Cloner le projet
-git clone https://github.com/Patrickleondev/Hackathon_au_Togo_IT_Days_2025_EPL_Team.git
-cd "Hackathon_au_Togo_IT_Days_2025_EPL_Team"
+git clone <repository_url>
+cd "Togo IT Days"
 
 # 2. Installer les dépendances backend
 cd backend
@@ -59,7 +60,7 @@ cd ../frontend
 npm start
 ```
 
-##  Structure des Modèles
+## 📁 Structure des Modèles
 
 Les modèles sont sauvegardés dans le dossier `backend/models/` :
 
