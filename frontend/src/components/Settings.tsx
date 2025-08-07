@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Shield, Bell, Monitor, Database, Download } from 'lucide-react';
 
 const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState('general');
+  const [availableLanguages, setAvailableLanguages] = useState<{[key: string]: string}>({});
+  const [currentLanguage, setCurrentLanguage] = useState('fr');
   const [settings, setSettings] = useState({
     // Général
     language: 'fr',
@@ -30,11 +32,70 @@ const Settings: React.FC = () => {
     dataCollection: true
   });
 
+  useEffect(() => {
+    // Charger les langues disponibles au démarrage
+    fetchAvailableLanguages();
+  }, []);
+
+  const fetchAvailableLanguages = async () => {
+    try {
+      const response = await fetch('/api/languages');
+      const data = await response.json();
+      
+      if (data.success) {
+        setAvailableLanguages(data.languages);
+        setCurrentLanguage(data.current);
+        setSettings(prev => ({ ...prev, language: data.current }));
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des langues:', error);
+      // Fallback avec langues par défaut
+      setAvailableLanguages({
+        'fr': 'Français',
+        'en': 'English',
+        'ee': 'Eʋegbe'
+      });
+    }
+  };
+
+  const handleLanguageChange = async (newLanguage: string) => {
+    try {
+      const response = await fetch('/api/language', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ language: newLanguage }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setCurrentLanguage(newLanguage);
+        setSettings(prev => ({ ...prev, language: newLanguage }));
+        
+        // Optionnel: recharger la page pour appliquer les traductions
+        // window.location.reload();
+        
+        // Ou afficher une notification de succès
+        console.log(`Langue changée vers: ${newLanguage}`);
+      } else {
+        console.error('Erreur lors du changement de langue:', result.detail);
+      }
+    } catch (error) {
+      console.error('Erreur lors du changement de langue:', error);
+    }
+  };
+
   const handleSettingChange = (category: string, setting: string, value: any) => {
-    setSettings(prev => ({
-      ...prev,
-      [setting]: value
-    }));
+    if (setting === 'language') {
+      handleLanguageChange(value);
+    } else {
+      setSettings(prev => ({
+        ...prev,
+        [setting]: value
+      }));
+    }
   };
 
   const tabs = [
@@ -58,10 +119,15 @@ const Settings: React.FC = () => {
               onChange={(e) => handleSettingChange('general', 'language', e.target.value)}
               className="form-input"
             >
-              <option value="fr">Français</option>
-              <option value="en">English</option>
-              <option value="es">Español</option>
+              {Object.entries(availableLanguages).map(([code, name]) => (
+                <option key={code} value={code}>{name}</option>
+              ))}
             </select>
+            <p className="text-sm text-gray-500 mt-1">
+              {currentLanguage === 'fr' && 'Choisissez votre langue préférée'}
+              {currentLanguage === 'en' && 'Choose your preferred language'}
+              {currentLanguage === 'ee' && 'Tia wò lɔlɔ̃a gbe'}
+            </p>
           </div>
 
           <div>
@@ -71,16 +137,36 @@ const Settings: React.FC = () => {
               onChange={(e) => handleSettingChange('general', 'theme', e.target.value)}
               className="form-input"
             >
-              <option value="light">Clair</option>
-              <option value="dark">Sombre</option>
-              <option value="auto">Automatique</option>
+              <option value="light">
+                {currentLanguage === 'fr' && 'Clair'}
+                {currentLanguage === 'en' && 'Light'}
+                {currentLanguage === 'ee' && 'Keklẽ'}
+              </option>
+              <option value="dark">
+                {currentLanguage === 'fr' && 'Sombre'}
+                {currentLanguage === 'en' && 'Dark'}
+                {currentLanguage === 'ee' && 'Viviti'}
+              </option>
+              <option value="auto">
+                {currentLanguage === 'fr' && 'Automatique'}
+                {currentLanguage === 'en' && 'Automatic'}
+                {currentLanguage === 'ee' && 'Wɔe ɖokuia'}
+              </option>
             </select>
           </div>
 
           <div className="flex items-center justify-between">
             <div>
-              <label className="font-medium text-gray-900">Démarrer avec Windows</label>
-              <p className="text-sm text-gray-600">Lancer automatiquement au démarrage du système</p>
+              <label className="font-medium text-gray-900">
+                {currentLanguage === 'fr' && 'Démarrer avec le système'}
+                {currentLanguage === 'en' && 'Start with system'}
+                {currentLanguage === 'ee' && 'Dze egɔme kple mɔ̃'}
+              </label>
+              <p className="text-sm text-gray-600">
+                {currentLanguage === 'fr' && 'Lancer automatiquement au démarrage du système'}
+                {currentLanguage === 'en' && 'Launch automatically at system startup'}
+                {currentLanguage === 'ee' && 'Dze egɔme le mɔ̃ gɔme'}
+              </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
