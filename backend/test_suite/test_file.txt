@@ -1,0 +1,2 @@
+Ceci est un fichier de test pour vérifier que les modèles entraînés fonctionnent correctement.
+Test de détection de ransomware avec les modèles ML.

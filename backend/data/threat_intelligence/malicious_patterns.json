@@ -1,0 +1,26 @@
+{
+  "data": [
+    "\\.encrypted$",
+    "\\.locked$",
+    "\\.crypto$",
+    "\\.ransom$",
+    "\\.bitcoin$",
+    "\\.wallet$",
+    "\\.miner$",
+    "\\.cryptolocker$",
+    "readme.*\\.txt$",
+    "decrypt.*\\.txt$",
+    "pay.*\\.txt$",
+    "bitcoin.*\\.txt$",
+    "wallet.*\\.txt$",
+    "ransom.*\\.txt$",
+    "your.*files.*encrypted",
+    "pay.*bitcoin",
+    "decrypt.*key",
+    "ransom.*payment",
+    "crypto.*locker",
+    "encrypt.*files"
+  ],
+  "last_update": "2025-08-08T19:07:28.488470",
+  "count": 20
+}

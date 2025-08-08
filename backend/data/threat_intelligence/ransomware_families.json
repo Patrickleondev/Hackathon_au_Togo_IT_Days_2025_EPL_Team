@@ -1,0 +1,96 @@
+{
+  "data": {
+    "WannaCry": {
+      "patterns": [
+        "wcry",
+        "wannacry",
+        "wncry"
+      ],
+      "extensions": [
+        ".wcry",
+        ".wncry"
+      ],
+      "ransom_note": "WannaCry"
+    },
+    "Locky": {
+      "patterns": [
+        "locky",
+        "locker"
+      ],
+      "extensions": [
+        ".locky",
+        ".zepto",
+        ".odin"
+      ],
+      "ransom_note": "Locky"
+    },
+    "CryptoLocker": {
+      "patterns": [
+        "cryptolocker",
+        "crypto"
+      ],
+      "extensions": [
+        ".encrypted",
+        ".crypto"
+      ],
+      "ransom_note": "CryptoLocker"
+    },
+    "Cerber": {
+      "patterns": [
+        "cerber",
+        "cerb"
+      ],
+      "extensions": [
+        ".cerber",
+        ".cerb"
+      ],
+      "ransom_note": "Cerber"
+    },
+    "Petya": {
+      "patterns": [
+        "petya",
+        "petr"
+      ],
+      "extensions": [
+        ".petya",
+        ".petr"
+      ],
+      "ransom_note": "Petya"
+    },
+    "TeslaCrypt": {
+      "patterns": [
+        "teslacrypt",
+        "tesla"
+      ],
+      "extensions": [
+        ".tesla",
+        ".ecc"
+      ],
+      "ransom_note": "TeslaCrypt"
+    },
+    "CryptoWall": {
+      "patterns": [
+        "cryptowall",
+        "cwall"
+      ],
+      "extensions": [
+        ".cryptowall",
+        ".cwall"
+      ],
+      "ransom_note": "CryptoWall"
+    },
+    "CTB-Locker": {
+      "patterns": [
+        "ctb-locker",
+        "ctb"
+      ],
+      "extensions": [
+        ".ctb",
+        ".ctbl"
+      ],
+      "ransom_note": "CTB-Locker"
+    }
+  },
+  "last_update": "2025-08-08T19:07:28.488470",
+  "count": 8
+}

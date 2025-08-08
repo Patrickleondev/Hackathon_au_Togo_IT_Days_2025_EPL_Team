@@ -116,35 +116,63 @@ class EvasionDetector:
         return features
     
     def _detect_suspicious_patterns(self, file_path: str) -> List[str]:
-        """Détecter les patterns suspects dans le fichier"""
-        patterns = []
-        
+        """Détecter les patterns suspects dans un fichier"""
         try:
             with open(file_path, 'rb') as f:
-                content = f.read(2048)  # Lire les premiers 2KB
+                data = f.read(4096)  # Lire les premiers 4KB
             
-            # Patterns suspects
-            suspicious_patterns = [
+            if not data:
+                return []
+            
+            suspicious_patterns = []
+            
+            # Patterns suspects en bytes
+            patterns = [
+                b'ransomware', b'encrypt', b'decrypt', b'crypto',
+                b'bitcoin', b'wallet', b'payment', b'ransom',
+                b'lock', b'unlock', b'key', b'password',
+                b'virus', b'malware', b'trojan', b'backdoor',
+                b'rootkit', b'stealer', b'logger', b'spyware',
                 b'PE\x00\x00',  # Header PE
                 b'MZ',          # Header MZ
-                b'CreateFile', 'ReadFile', 'WriteFile',
-                b'RegCreateKey', 'RegSetValue',
-                b'InternetOpen', 'HttpOpenRequest',
-                b'CryptEncrypt', 'CryptDecrypt'
+                b'CreateFile', b'ReadFile', b'WriteFile',
+                b'RegCreateKey', b'RegSetValue',
+                b'InternetOpen', b'HttpOpenRequest',
+                b'CryptEncrypt', b'CryptDecrypt'
             ]
             
-            for pattern in suspicious_patterns:
-                if pattern in content:
-                    patterns.append(pattern.decode('utf-8', errors='ignore'))
+            # Chercher les patterns
+            for pattern in patterns:
+                if pattern in data:
+                    suspicious_patterns.append(pattern.decode('utf-8', errors='ignore'))
+            
+            # Chercher des chaînes de caractères suspectes
+            try:
+                text_content = data.decode('utf-8', errors='ignore').lower()
+                text_patterns = [
+                    'ransomware', 'encrypt', 'decrypt', 'crypto',
+                    'bitcoin', 'wallet', 'payment', 'ransom',
+                    'lock', 'unlock', 'key', 'password',
+                    'virus', 'malware', 'trojan', 'backdoor',
+                    'this program cannot be run in dos mode'
+                ]
+                
+                for pattern in text_patterns:
+                    if pattern in text_content:
+                        suspicious_patterns.append(pattern)
+            except:
+                pass  # Ignorer les erreurs de décodage
+            
+            return list(set(suspicious_patterns))  # Supprimer les doublons
             
         except Exception as e:
             logger.error(f"Erreur lors de la détection des patterns: {e}")
-        
-        return patterns
+            return []
     
     def _calculate_entropy(self, file_path: str) -> float:
         """Calculer l'entropie d'un fichier"""
         try:
+            import math
             with open(file_path, 'rb') as f:
                 data = f.read(1024)  # Lire les premiers 1KB
             
@@ -163,7 +191,7 @@ class EvasionDetector:
             for count in byte_counts:
                 if count > 0:
                     probability = count / data_length
-                    entropy -= probability * np.log2(probability)
+                    entropy -= probability * math.log2(probability)
             
             return entropy
             
@@ -196,6 +224,39 @@ class AdvancedHuggingFaceDetector:
         self._load_models()
         self._start_background_processor()
     
+    async def initialize(self):
+        """Initialiser le détecteur avancé"""
+        try:
+            logger.info("🔄 Initialisation du détecteur avancé...")
+            
+            # Vérifier que les modèles sont chargés
+            if not self.models:
+                self._load_models()
+            
+            # Vérifier l'état des modèles
+            model_status = {}
+            for name, model in self.models.items():
+                model_status[name] = {
+                    'loaded': model is not None,
+                    'type': type(model).__name__
+                }
+            
+            logger.info(f"✅ Détecteur avancé initialisé - Modèles: {list(self.models.keys())}")
+            
+            return {
+                'success': True,
+                'models_loaded': len(self.models),
+                'model_status': model_status,
+                'evasion_detector': True
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Erreur lors de l'initialisation du détecteur avancé: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
     def _load_models(self):
         """Charger les modèles avancés"""
         try:
@@ -218,6 +279,36 @@ class AdvancedHuggingFaceDetector:
             
         except Exception as e:
             logger.error(f"❌ Erreur lors du chargement des modèles avancés: {e}")
+    
+    def _calculate_entropy(self, file_path: str) -> float:
+        """Calculer l'entropie d'un fichier"""
+        try:
+            import math
+            with open(file_path, 'rb') as f:
+                data = f.read(1024)  # Lire les premiers 1KB
+            
+            if not data:
+                return 0.0
+            
+            # Calculer la distribution des bytes
+            byte_counts = [0] * 256
+            for byte in data:
+                byte_counts[byte] += 1
+            
+            # Calculer l'entropie
+            entropy = 0.0
+            data_length = len(data)
+            
+            for count in byte_counts:
+                if count > 0:
+                    probability = count / data_length
+                    entropy -= probability * math.log2(probability)
+            
+            return entropy
+            
+        except Exception as e:
+            logger.error(f"Erreur lors du calcul de l'entropie: {e}")
+            return 0.0
     
     def _start_background_processor(self):
         """Démarrer le processeur en arrière-plan"""
@@ -493,3 +584,264 @@ class AdvancedHuggingFaceDetector:
         except Exception as e:
             logger.error(f"Erreur lors du test de détection d'évasion: {e}")
             return {'error': str(e)} 
+
+    async def analyze_with_advanced_detector(self, file_path: str, process_info: Dict) -> Dict[str, Any]:
+        """Analyser un fichier avec le détecteur avancé"""
+        try:
+            logger.info(f"🔍 Analyse avancée du fichier: {file_path}")
+            
+            # Vérifier si c'est un binaire
+            is_binary = self._is_binary_file(file_path)
+            
+            if is_binary:
+                # Analyse spéciale pour les binaires
+                return await self._analyze_binary_file(file_path, process_info)
+            else:
+                # Analyse normale pour les fichiers texte
+                return await self._analyze_text_file(file_path, process_info)
+                
+        except Exception as e:
+            logger.error(f"❌ Erreur lors de l'analyse avancée: {e}")
+            return {
+                'is_threat': False,
+                'confidence': 0.0,
+                'threat_type': 'unknown',
+                'severity': 'low',
+                'description': 'Erreur lors de l\'analyse avancée',
+                'analysis_method': 'advanced_error',
+                'timestamp': datetime.now().isoformat()
+            }
+    
+    def _is_binary_file(self, file_path: str) -> bool:
+        """Déterminer si un fichier est binaire"""
+        try:
+            with open(file_path, 'rb') as f:
+                header = f.read(1024)
+                
+            # Vérifier les headers de binaires
+            if header.startswith(b'MZ') or header.startswith(b'PE') or header.startswith(b'\x7fELF'):
+                return True
+            
+            # Vérifier l'entropie (fichiers binaires ont une entropie élevée)
+            entropy = self._calculate_entropy(file_path)
+            return entropy > 6.0
+            
+        except Exception:
+            return False
+    
+    async def _analyze_binary_file(self, file_path: str, process_info: Dict) -> Dict[str, Any]:
+        """Analyser un fichier binaire malveillant"""
+        try:
+            logger.info(f"🔍 Analyse binaire: {file_path}")
+            
+            # Lire le fichier binaire
+            with open(file_path, 'rb') as f:
+                data = f.read(8192)  # Lire 8KB
+            
+            # Vérifier le type de binaire
+            is_elf = data.startswith(b'\x7fELF')
+            is_pe = data.startswith(b'MZ')
+            
+            # Patterns suspects pour les binaires malveillants
+            binary_patterns = [
+                # Patterns Windows
+                b'CreateFile', b'ReadFile', b'WriteFile', b'DeleteFile',
+                b'RegCreateKey', b'RegSetValue', b'RegDeleteValue',
+                b'InternetOpen', b'HttpOpenRequest', b'HttpSendRequest',
+                b'CryptEncrypt', b'CryptDecrypt', b'CryptGenKey',
+                b'ShellExecute', b'WinExec', b'CreateProcess',
+                b'VirtualAlloc', b'VirtualProtect', b'WriteProcessMemory',
+                b'CreateRemoteThread', b'SetWindowsHookEx',
+                b'GetSystemDirectory', b'GetWindowsDirectory',
+                b'FindFirstFile', b'FindNextFile',
+                b'CopyFile', b'MoveFile', b'SetFileAttributes',
+                # Patterns Linux/ELF
+                b'execve', b'fork', b'clone', b'kill',
+                b'open', b'read', b'write', b'close',
+                b'socket', b'connect', b'bind', b'listen',
+                b'accept', b'send', b'recv',
+                b'chmod', b'chown', b'unlink', b'rename',
+                b'system', b'popen', b'getenv', b'setenv',
+                b'malloc', b'free', b'mmap', b'munmap',
+                b'ptrace', b'prctl', b'seccomp',
+                # Patterns génériques malveillants
+                b'payload', b'malware', b'virus', b'backdoor',
+                b'encrypt', b'decrypt', b'ransomware', b'botnet',
+                b'ircbot', b'bot', b'worm', b'trojan'
+            ]
+            
+            # Chercher les patterns
+            found_patterns = []
+            for pattern in binary_patterns:
+                if pattern in data:
+                    found_patterns.append(pattern.decode('utf-8', errors='ignore'))
+            
+            # Analyser l'entropie
+            entropy = self._calculate_entropy(file_path)
+            
+            # Calculer le score de menace
+            threat_score = 0.0
+            
+            # Score basé sur les patterns trouvés
+            if found_patterns:
+                threat_score += min(len(found_patterns) * 0.2, 0.6)
+            
+            # Score basé sur l'entropie (binaires malveillants ont souvent une entropie élevée)
+            if entropy > 7.0:
+                threat_score += 0.3
+            elif entropy > 6.0:
+                threat_score += 0.2
+            
+            # Score basé sur la taille (petits binaires suspects)
+            file_size = os.path.getsize(file_path)
+            if file_size < 50000:  # < 50KB
+                threat_score += 0.1
+            
+            # Score bonus pour les binaires ELF (souvent malveillants dans notre contexte)
+            if is_elf:
+                threat_score += 0.2
+                
+                # Règles spécifiques pour les binaires ELF suspects
+                file_size = os.path.getsize(file_path)
+                
+                # Petits binaires ELF (< 50KB) sont souvent malveillants
+                if file_size < 50000:
+                    threat_score += 0.3
+                
+                # Entropie faible peut indiquer un binaire obfusqué/compressé
+                if entropy < 3.0:
+                    threat_score += 0.2
+                
+                # Chercher des patterns spécifiques aux malwares ELF
+                elf_malware_patterns = [
+                    b'ircbot', b'botnet', b'backdoor', b'rootkit',
+                    b'payload', b'shell', b'bind', b'reverse',
+                    b'connect', b'listen', b'accept', b'fork',
+                    b'execve', b'system', b'popen', b'ptrace'
+                ]
+                
+                elf_patterns_found = []
+                for pattern in elf_malware_patterns:
+                    if pattern in data:
+                        elf_patterns_found.append(pattern.decode('utf-8', errors='ignore'))
+                
+                if elf_patterns_found:
+                    threat_score += min(len(elf_patterns_found) * 0.15, 0.4)
+                
+                # Si c'est un binaire ELF et qu'il a un nom suspect
+                filename = os.path.basename(file_path).lower()
+                suspicious_names = ['ircbot', 'bot', 'malware', 'virus', 'trojan', 'backdoor']
+                if any(name in filename for name in suspicious_names):
+                    threat_score += 0.4
+            
+            # Normaliser le score
+            threat_score = min(threat_score, 1.0)
+            
+            # Déterminer le type de menace
+            threat_type = "unknown"
+            if threat_score > 0.7:
+                threat_type = "malware"
+            elif threat_score > 0.4:
+                threat_type = "suspicious"
+            
+            # Déterminer la sévérité
+            severity = "low"
+            if threat_score > 0.8:
+                severity = "high"
+            elif threat_score > 0.5:
+                severity = "medium"
+            
+            result = {
+                'is_threat': threat_score > 0.5,
+                'confidence': threat_score,
+                'threat_type': threat_type,
+                'severity': severity,
+                'description': f'Analyse binaire - Patterns: {len(found_patterns)}, Entropie: {entropy:.2f}',
+                'patterns_found': found_patterns,
+                'entropy': entropy,
+                'file_size': file_size,
+                'is_binary': True,
+                'binary_type': 'ELF' if is_elf else 'PE' if is_pe else 'Unknown',
+                'analysis_method': 'binary_analysis',
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            logger.info(f"✅ Analyse binaire terminée - Score: {threat_score:.2f}, Type: {threat_type}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de l'analyse binaire: {e}")
+            return {
+                'is_threat': False,
+                'confidence': 0.0,
+                'threat_type': 'unknown',
+                'severity': 'low',
+                'description': 'Erreur lors de l\'analyse binaire',
+                'analysis_method': 'binary_error',
+                'timestamp': datetime.now().isoformat()
+            }
+    
+    async def _analyze_text_file(self, file_path: str, process_info: Dict) -> Dict[str, Any]:
+        """Analyser un fichier texte"""
+        try:
+            logger.info(f"🔍 Analyse texte: {file_path}")
+            
+            # Utiliser l'analyse existante pour les fichiers texte
+            suspicious_patterns = self._detect_suspicious_patterns(file_path)
+            entropy = self._calculate_entropy(file_path)
+            
+            # Calculer le score de menace
+            threat_score = 0.0
+            
+            # Score basé sur les patterns trouvés
+            if suspicious_patterns:
+                threat_score += min(len(suspicious_patterns) * 0.3, 0.6)
+            
+            # Score basé sur l'entropie
+            if entropy > 7.0:
+                threat_score += 0.2
+            
+            # Normaliser le score
+            threat_score = min(threat_score, 1.0)
+            
+            # Déterminer le type de menace
+            threat_type = "unknown"
+            if threat_score > 0.6:
+                threat_type = "malware"
+            elif threat_score > 0.3:
+                threat_type = "suspicious"
+            
+            # Déterminer la sévérité
+            severity = "low"
+            if threat_score > 0.7:
+                severity = "high"
+            elif threat_score > 0.4:
+                severity = "medium"
+            
+            result = {
+                'is_threat': threat_score > 0.5,
+                'confidence': threat_score,
+                'threat_type': threat_type,
+                'severity': severity,
+                'description': f'Analyse texte - Patterns: {len(suspicious_patterns)}, Entropie: {entropy:.2f}',
+                'patterns_found': suspicious_patterns,
+                'entropy': entropy,
+                'is_binary': False,
+                'analysis_method': 'text_analysis',
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            logger.info(f"✅ Analyse texte terminée - Score: {threat_score:.2f}, Type: {threat_type}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de l'analyse texte: {e}")
+            return {
+                'is_threat': False,
+                'confidence': 0.0,
+                'threat_type': 'unknown',
+                'severity': 'low',
+                'description': 'Erreur lors de l\'analyse texte',
+                'analysis_method': 'text_error',
+                'timestamp': datetime.now().isoformat()
+            } 

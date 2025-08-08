@@ -56,6 +56,17 @@ logs/
 # backend/models/*.pkl
 # backend/models/*.json
 
+# Modèles entraînés - à exclure du contrôle de version
+models/
+backend/models/
+**/models/
+*.pkl
+*.joblib
+*.h5
+*.onnx
+*.pt
+*.pth
+
 # Node modules
 frontend/node_modules/
 frontend/.next/

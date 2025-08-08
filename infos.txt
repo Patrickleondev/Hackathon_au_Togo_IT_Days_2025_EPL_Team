@@ -75,3 +75,153 @@ Accessible
 Interface simple pour tous les utilisateurs
 
 RansomGuard AI - Hackathon Togo IT Days 2025 | Protection alimentée par l'Intelligence Artificielle
+
+
+==================================
+
+Ran 2 terminal commands
+✅ Mission Accomplie !
+J'ai réussi à valider et appliquer toutes les pull requests en attente. Voici un résumé détaillé de ce qui a été accompli :
+
+🔍 Pull Requests Identifiées et Fusionnées
+1. Pull Request - Documentation Frontend
+
+Branche : origin/cursor/entra-ner-le-syst-me-unifi-de-protection-contre-les-ransomwares-3da3
+Fichier ajouté : FRONTEND_SETUP.md
+Contenu : Guide complet d'installation et de configuration du frontend avec :
+Support multilingue (Français, Anglais, Ewe)
+Instructions d'accessibilité WCAG 2.1
+Scénarios de démonstration pour le jury du hackathon
+Configuration responsive et mobile-first
+2. Pull Request - Améliorations Backend
+
+Branche : origin/cursor/backend-integration-and-system-monitoring-setup-534a
+Fichiers ajoutés/modifiés :
+GUIDE_UTILISATION.md - Guide utilisateur complet (523 lignes)
+backend/utils/i18n.py - Module d'internationalisation (263 lignes)
+backend/main.py - Backend enrichi avec nouvelles fonctionnalités
+setup_system.py - Script d'installation automatique (315 lignes)
+backend/requirements.txt - Nouvelles dépendances
+frontend/src/components/Settings.tsx - Composant paramètres amélioré
+🛠️ Processus de Validation Effectué
+✅ Vérification de l'état du dépôt - Identification des branches distantes
+✅ Examen du contenu - Analyse détaillée de chaque modification
+✅ Test de conflits - Vérification de compatibilité des fusions
+✅ Fusion séquentielle - Application propre des modifications
+✅ Publication - Push vers le dépôt distant
+🎯 Nouvelles Fonctionnalités Intégrées
+Backend enrichi :
+
+Support multilingue complet (FR/EN/Ewe)
+Monitoring système temps réel (CPU/mémoire)
+Analyse de fichiers avancée avec IA hybride
+Endpoints API étendus pour la détection de menaces
+Configuration automatisée via script setup
+Documentation complète :
+
+Guide d'utilisation détaillé en français
+Instructions d'installation frontend
+Support d'accessibilité intégré
+Scénarios de démonstration pour hackathon
+📊 Résultat Final
+2 branches fusionnées avec succès sans conflit
+6 fichiers nouveaux ou modifiés intégrés
++1782 lignes de code et documentation ajoutées
+0 conflit détecté lors des fusions
+Historique Git propre avec messages de commit détaillés
+Toutes les modifications ont été appliquées avec succès et sont maintenant disponibles sur la branche main du dépôt. Le projet RansomGuard AI est maintenant enrichi de toutes les fonctionnalités développées dans les pull requests ! 🚀
+
+j'aimerais savoir c'est quand tu parle du système monitoring, c'est quel système qui sera monitorer ? et pour le reseau ? comment expliquer et comment comprendre 
+Excellente question ! Je vais examiner en détail le système de monitoring intégré pour vous expliquer exactement ce qui est surveillé et comment cela fonctionne.
+
+Read main.py and system_monitor.py and searched twice
+Maintenant je peux vous expliquer en détail le système de monitoring ! 📊
+
+🔍 Système de Monitoring RansomGuard AI - Explication Complète
+🖥️ 1. Système Local Surveillé
+Le monitoring surveille votre ordinateur local où RansomGuard AI est installé. Il surveille en temps réel :
+
+A. Ressources Système
+CPU : Utilisation processeur (%)
+Mémoire RAM : Utilisation mémoire (%)
+Disque dur : Espace utilisé (%)
+Entrées/Sorties réseau : Données envoyées/reçues
+B. Processus en Cours
+Tous les programmes qui tournent sur votre machine
+Détection de noms suspects : processus contenant "encrypt", "ransom", "crypto", "bitcoin", etc.
+Utilisation excessive de CPU : processus consommant > 80% CPU
+Historique d'activité : tendances d'utilisation de chaque processus
+C. Système de Fichiers
+Dossiers surveillés :
+
+~/Documents (vos documents)
+~/Desktop (bureau)
+~/Downloads (téléchargements)
+~/Pictures (images)
+/tmp et /var/tmp (fichiers temporaires)
+Détection d'activités suspectes :
+
+Fichiers avec extensions .encrypted, .locked, .crypto
+Fichiers nommés "readme", "decrypt", "bitcoin", "ransom"
+Modifications massives (> 5 fichiers en 1 minute)
+🌐 2. Surveillance Réseau
+A. Connexions Réseau Actives
+# Surveille toutes les connexions établies
+connections = psutil.net_connections(kind='inet')
+Connexions sortantes : Vers quels serveurs votre machine se connecte
+Connexions entrantes : Qui se connecte à votre machine
+Ports ouverts : Services accessibles sur votre machine
+B. Analyse des Risques Réseau
+Ports suspects : 4444, 5555, 6666, 7777, 31337 (ports couramment utilisés par les malwares)
+Connexions non autorisées : Vers des IPs externes sur des ports non standards
+Activité réseau inhabituelle : Trafic élevé, connexions multiples
+C. Scan des Ports
+common_ports = [21, 22, 23, 25, 53, 80, 110, 443, 993, 995, 1433, 3389, 5432, 5900]
+Vérifie si ces services sont ouverts :
+
+21 : FTP
+22 : SSH
+80/443 : Web (HTTP/HTTPS)
+3389 : Remote Desktop
+5900 : VNC (contrôle à distance)
+🚨 3. Types d'Alertes Générées
+A. Alertes Processus
+'suspicious_process' : "Processus suspect détecté: crypto.exe (PID: 1234)"
+'high_cpu_usage' : "Utilisation CPU élevée: process.exe (85.2%)"
+B. Alertes Fichiers
+'suspicious_file_activity' : "Activité suspecte sur: /home/user/document.encrypted"
+'mass_file_access' : "Accès massif détecté sur: /home/user/photos/"
+C. Alertes Réseau
+'suspicious_network_connection' : "Connexion suspecte: 192.168.1.100:4444"
+'network_scan_results' : "5 connexions suspectes, 3 ports ouverts"
+D. Alertes Système
+'high_system_cpu' : "Utilisation CPU système élevée: 95.1%"
+'high_system_memory' : "Utilisation mémoire élevée: 92.3%"
+🎯 4. Comment ça Fonctionne en Pratique
+Scenario 1 : Ransomware Actif
+Détection processus : Un programme "WannaCry.exe" démarre
+Alerte immédiate : "Processus suspect détecté"
+Surveillance fichiers : Modifications massives dans Documents/
+Alerte escalade : "Accès massif détecté - Possible ransomware"
+Scenario 2 : Connexion Suspecte
+Détection réseau : Connexion vers IP 45.67.89.123:4444
+Analyse risque : Port 4444 = suspect + IP externe
+Alerte réseau : "Connexion réseau suspecte détectée"
+Scenario 3 : Performance Dégradée
+Monitoring ressources : CPU à 95% pendant 5 minutes
+Analyse processus : Processus "miner.exe" consomme 90% CPU
+Double alerte : Performance + processus suspect
+📈 5. Interface de Monitoring
+Via l'API, vous pouvez consulter :
+
+GET /api/system/status    # État temps réel
+GET /api/threats         # Alertes et menaces
+GET /api/monitoring      # Activités suspectes
+🔧 6. Configuration et Personnalisation
+Vous pouvez ajuster :
+
+Seuils d'alerte : CPU > 80% au lieu de 90%
+Dossiers surveillés : Ajouter d'autres répertoires
+Ports suspects : Définir votre propre liste
+Fréquence : Monitoring toutes les 1-5 secondes
+Ce système offre une protection proactive en surveillant constamment votre environnement pour détecter les premiers signes d'activité malveillante, que ce soit au niveau des processus, des fichiers ou du réseau ! 🛡️

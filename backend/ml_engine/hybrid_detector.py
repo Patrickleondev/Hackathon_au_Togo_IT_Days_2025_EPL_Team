@@ -10,6 +10,7 @@ from datetime import datetime
 import json
 import hashlib
 import os
+import numpy as np
 
 from .ransomware_detector import RansomwareDetector
 from .huggingface_detector import HuggingFaceDetector
@@ -146,14 +147,53 @@ class HybridDetector:
                 'combined_result': combined_result
             }
             
-            return final_decision
+            # 7. S'assurer que le résultat contient tous les champs nécessaires
+            if not isinstance(final_decision, dict):
+                final_decision = {}
+            
+            # Garantir les champs requis
+            result = {
+                'is_threat': final_decision.get('is_threat', False),
+                'confidence': final_decision.get('confidence', 0.0),
+                'threat_type': final_decision.get('threat_type', 'unknown'),
+                'severity': final_decision.get('severity', 'low'),
+                'risk_level': final_decision.get('risk_level', 'safe'),
+                'final_score': final_decision.get('final_score', 0.0),
+                'recommendations': final_decision.get('recommendations', ['Analyse terminée']),
+                'timestamp': final_decision.get('timestamp', datetime.now().isoformat()),
+                'analysis_method': final_decision.get('analysis_method', 'hybrid'),
+                'file_name': os.path.basename(file_path),
+                'pattern_analysis': {
+                    'malicious_patterns': traditional_result.get('malicious_patterns', 0),
+                    'encryption_patterns': traditional_result.get('encryption_patterns', 0),
+                    'risk_score': final_decision.get('confidence', 0.0)
+                },
+                'detected_strings': traditional_result.get('detected_strings', [])
+            }
+            
+            logger.info(f"✅ Analyse hybride terminée - Score: {result['confidence']:.2f}, Menace: {result['is_threat']}")
+            return result
             
         except Exception as e:
             logger.error(f"Erreur lors de l'analyse hybride: {e}")
+            # Retourner un résultat de fallback valide
             return {
                 'is_threat': False,
-                'confidence': 0,
-                'risk_level': 'unknown',
+                'confidence': 0.0,
+                'threat_type': 'unknown',
+                'severity': 'low',
+                'risk_level': 'safe',
+                'final_score': 0.0,
+                'recommendations': ['Erreur lors de l\'analyse - Fichier considéré comme sûr'],
+                'timestamp': datetime.now().isoformat(),
+                'analysis_method': 'hybrid_error',
+                'file_name': os.path.basename(file_path) if file_path else 'unknown',
+                'pattern_analysis': {
+                    'malicious_patterns': 0,
+                    'encryption_patterns': 0,
+                    'risk_score': 0.0
+                },
+                'detected_strings': [],
                 'error': str(e)
             }
     
@@ -173,9 +213,17 @@ class HybridDetector:
                 
                 for model_name, model in trained_models['models'].items():
                     try:
+                        # S'assurer que features est un array numpy 2D
+                        if isinstance(features, np.ndarray):
+                            if features.ndim == 1:
+                                features = features.reshape(1, -1)
+                        else:
+                            # Convertir en array numpy si ce n'est pas déjà le cas
+                            features = np.array(features).reshape(1, -1)
+                        
                         # Prédire avec le modèle entraîné
-                        prediction = model.predict([features])[0]
-                        confidence = model.predict_proba([features])[0].max() if hasattr(model, 'predict_proba') else 0.8
+                        prediction = model.predict(features)[0]
+                        confidence = model.predict_proba(features)[0].max() if hasattr(model, 'predict_proba') else 0.8
                         
                         predictions.append(prediction)
                         confidences.append(confidence)
@@ -184,33 +232,38 @@ class HybridDetector:
                         
                     except Exception as e:
                         logger.warning(f"Erreur avec le modèle {model_name}: {e}")
-                        continue
+                        predictions.append(0)
+                        confidences.append(0.0)
                 
                 if predictions:
-                    # Vote majoritaire
-                    final_prediction = 1 if sum(predictions) > len(predictions) / 2 else 0
-                    avg_confidence = sum(confidences) / len(confidences)
+                    # Calculer le score d'ensemble
+                    ensemble_score = sum(confidences) / len(confidences)
+                    is_threat = ensemble_score > 0.6  # Seuil de 60%
                     
                     return {
-                        'is_threat': bool(final_prediction),
-                        'confidence': avg_confidence,
-                        'ensemble_score': avg_confidence if final_prediction else 1 - avg_confidence,
-                        'method': 'trained_models',
-                        'models_used': len(predictions)
+                        'is_threat': is_threat,
+                        'confidence': ensemble_score,
+                        'threat_type': 'ransomware' if is_threat else 'safe',
+                        'severity': 'high' if ensemble_score > 0.8 else 'medium' if ensemble_score > 0.6 else 'low',
+                        'description': f'Analyse ML traditionnelle - Score: {ensemble_score:.2f}',
+                        'individual_predictions': dict(zip(trained_models['models'].keys(), predictions)),
+                        'individual_confidences': dict(zip(trained_models['models'].keys(), confidences)),
+                        'analysis_method': 'traditional_ml',
+                        'timestamp': datetime.now().isoformat(),
+                        'malicious_patterns': len([p for p in predictions if p == 1]),
+                        'encryption_patterns': 0,  # À calculer si nécessaire
+                        'detected_strings': features.get('suspicious_strings', []) if isinstance(features, dict) else []
                     }
-            
-            # Fallback vers l'analyse traditionnelle
-            logger.info("Utilisation de l'analyse traditionnelle de fallback")
-            return await self.ransomware_detector.analyze_file(file_path, process_info)
+                else:
+                    logger.warning("Aucune prédiction valide obtenue")
+                    return self._create_fallback_result("traditional")
+            else:
+                logger.warning("Aucun modèle entraîné disponible")
+                return self._create_fallback_result("traditional")
             
         except Exception as e:
-            logger.error(f"Erreur lors de l'analyse traditionnelle: {e}")
-            return {
-                'is_threat': False,
-                'confidence': 0,
-                'ensemble_score': 0,
-                'error': str(e)
-            }
+            logger.error(f"Erreur dans l'analyse traditionnelle: {e}")
+            return self._create_fallback_result("traditional", str(e))
     
     async def _analyze_huggingface(self, file_path: str, process_info: Dict) -> Dict[str, Any]:
         """Analyse avec les modèles Hugging Face"""
@@ -219,10 +272,10 @@ class HybridDetector:
             
             return {
                 'method': 'huggingface',
-                'is_threat': result['is_threat'],
-                'confidence': result['confidence'],
-                'ensemble_score': result['ensemble_score'],
-                'model_predictions': result['model_predictions']
+                'is_threat': result.get('is_threat', False),
+                'confidence': result.get('confidence', 0.0),
+                'ensemble_score': result.get('ensemble_score', result.get('confidence', 0.0)),
+                'model_predictions': result.get('model_predictions', {})
             }
             
         except Exception as e:
@@ -230,8 +283,8 @@ class HybridDetector:
             return {
                 'method': 'huggingface',
                 'is_threat': False,
-                'confidence': 0,
-                'ensemble_score': 0,
+                'confidence': 0.0,
+                'ensemble_score': 0.0,
                 'error': str(e)
             }
     
@@ -249,11 +302,11 @@ class HybridDetector:
                 if result:
                     return {
                         'method': 'advanced',
-                        'is_threat': result['is_threat'],
-                        'confidence': result['confidence'],
-                        'ensemble_score': result['ensemble_score'],
-                        'evasion_scores': result['evasion_scores'],
-                        'threshold_used': result['threshold_used']
+                        'is_threat': result.get('is_threat', False),
+                        'confidence': result.get('confidence', 0.0),
+                        'ensemble_score': result.get('ensemble_score', result.get('confidence', 0.0)),
+                        'evasion_scores': result.get('evasion_scores', {}),
+                        'threshold_used': result.get('threshold_used', 0.5)
                     }
                 
                 await asyncio.sleep(0.5)
@@ -263,8 +316,8 @@ class HybridDetector:
             return {
                 'method': 'advanced',
                 'is_threat': False,
-                'confidence': 0,
-                'ensemble_score': 0,
+                'confidence': 0.0,
+                'ensemble_score': 0.0,
                 'error': 'timeout'
             }
             
@@ -273,62 +326,57 @@ class HybridDetector:
             return {
                 'method': 'advanced',
                 'is_threat': False,
-                'confidence': 0,
-                'ensemble_score': 0,
+                'confidence': 0.0,
+                'ensemble_score': 0.0,
                 'error': str(e)
             }
     
     def _combine_results(self, traditional: Dict, huggingface: Dict, advanced: Dict) -> Dict[str, Any]:
         """Combiner les résultats des différents détecteurs"""
         try:
-            # Calculer le score pondéré
-            weighted_score = 0
-            total_weight = 0
+            # Extraire les scores de confiance
+            traditional_score = traditional.get('confidence', 0.0) if 'error' not in traditional else 0.0
+            huggingface_score = huggingface.get('confidence', 0.0) if 'error' not in huggingface else 0.0
+            advanced_score = advanced.get('confidence', 0.0) if 'error' not in advanced else 0.0
             
-            # Score traditionnel
-            if 'ensemble_score' in traditional and not 'error' in traditional:
-                weighted_score += traditional['ensemble_score'] * self.ensemble_weights['traditional']
-                total_weight += self.ensemble_weights['traditional']
-            
-            # Score Hugging Face
-            if 'ensemble_score' in huggingface and not 'error' in huggingface:
-                weighted_score += huggingface['ensemble_score'] * self.ensemble_weights['huggingface']
-                total_weight += self.ensemble_weights['huggingface']
-            
-            # Score avancé
-            if 'ensemble_score' in advanced and not 'error' in advanced:
-                weighted_score += advanced['ensemble_score'] * self.ensemble_weights['advanced']
-                total_weight += self.ensemble_weights['advanced']
+            # Calculer le score final pondéré
+            final_score = (
+                traditional_score * self.ensemble_weights['traditional'] +
+                huggingface_score * self.ensemble_weights['huggingface'] +
+                advanced_score * self.ensemble_weights['advanced']
+            )
             
             # Normaliser le score
-            if total_weight > 0:
-                final_score = weighted_score / total_weight
-            else:
-                final_score = 0
+            final_score = min(final_score, 1.0)
             
-            # Analyser les techniques d'évasion
-            evasion_analysis = self._analyze_evasion_techniques(advanced)
+            # Calculer l'accord entre les méthodes
+            method_agreement = self._calculate_method_agreement(traditional, huggingface, advanced)
             
-            # Déterminer le niveau de risque
-            risk_level = self._determine_risk_level(final_score, evasion_analysis)
+            # Calculer la confiance globale
+            global_confidence = self._calculate_confidence(traditional, huggingface, advanced)
             
             return {
+                'traditional': traditional,
+                'huggingface': huggingface,
+                'advanced': advanced,
                 'final_score': final_score,
-                'risk_level': risk_level,
-                'evasion_analysis': evasion_analysis,
-                'method_agreement': self._calculate_method_agreement(traditional, huggingface, advanced),
-                'confidence': self._calculate_confidence(traditional, huggingface, advanced)
+                'method_agreement': method_agreement,
+                'global_confidence': global_confidence,
+                'risk_level': self._calculate_risk_level(final_score),
+                'confidence': final_score
             }
             
         except Exception as e:
             logger.error(f"Erreur lors de la combinaison des résultats: {e}")
             return {
-                'final_score': 0,
-                'risk_level': 'unknown',
-                'evasion_analysis': {},
-                'method_agreement': 0,
-                'confidence': 0,
-                'error': str(e)
+                'traditional': traditional,
+                'huggingface': huggingface,
+                'advanced': advanced,
+                'final_score': 0.0,
+                'method_agreement': 0.0,
+                'global_confidence': 0.0,
+                'risk_level': 'safe',
+                'confidence': 0.0
             }
     
     def _analyze_evasion_techniques(self, advanced_result: Dict) -> Dict[str, Any]:
@@ -369,6 +417,19 @@ class HybridDetector:
         else:
             return 'safe'
     
+    def _create_fallback_result(self, method: str, error: str = None) -> Dict[str, Any]:
+        """Créer un résultat de fallback en cas d'erreur"""
+        return {
+            'is_threat': False,
+            'confidence': 0.0,
+            'threat_type': 'unknown',
+            'severity': 'low',
+            'description': f'Analyse {method} - Mode fallback',
+            'analysis_method': f'{method}_fallback',
+            'error': error,
+            'timestamp': datetime.now().isoformat()
+        }
+    
     def _calculate_method_agreement(self, traditional: Dict, huggingface: Dict, advanced: Dict) -> float:
         """Calculer l'accord entre les méthodes"""
         agreements = []
@@ -402,27 +463,91 @@ class HybridDetector:
         
         return sum(confidences) / len(confidences) if confidences else 0
     
-    def _make_final_decision(self, combined_result: Dict) -> Dict[str, Any]:
-        """Prendre la décision finale"""
-        final_score = combined_result['final_score']
-        risk_level = combined_result['risk_level']
-        confidence = combined_result['confidence']
-        
-        # Décision basée sur le score et le niveau de risque
-        is_threat = risk_level in ['high', 'medium']
-        
-        # Recommandations d'action
-        recommendations = self._generate_recommendations(combined_result)
-        
-        return {
-            'is_threat': is_threat,
-            'confidence': confidence,
-            'risk_level': risk_level,
-            'final_score': final_score,
-            'recommendations': recommendations,
-            'timestamp': datetime.now().isoformat(),
-            'analysis_method': 'hybrid'
-        }
+    def _calculate_risk_level(self, score: float) -> str:
+        """Calculer le niveau de risque basé sur le score"""
+        if score >= self.adaptive_thresholds['high_risk']:
+            return 'high'
+        elif score >= self.adaptive_thresholds['medium_risk']:
+            return 'medium'
+        elif score >= self.adaptive_thresholds['low_risk']:
+            return 'low'
+        else:
+            return 'safe'
+    
+    def _make_final_decision(self, combined_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Prendre la décision finale basée sur les résultats combinés"""
+        try:
+            # Extraire les scores
+            traditional_score = combined_result.get('traditional', {}).get('confidence', 0.0)
+            huggingface_score = combined_result.get('huggingface', {}).get('confidence', 0.0)
+            advanced_score = combined_result.get('advanced', {}).get('confidence', 0.0)
+            
+            # Calculer le score final pondéré
+            final_score = (
+                traditional_score * self.ensemble_weights['traditional'] +
+                huggingface_score * self.ensemble_weights['huggingface'] +
+                advanced_score * self.ensemble_weights['advanced']
+            )
+            
+            # Déterminer si c'est une menace
+            is_threat = final_score > 0.6  # Seuil de 60%
+            
+            # Déterminer le type de menace
+            threat_type = "unknown"
+            if is_threat:
+                if final_score > 0.8:
+                    threat_type = "ransomware"
+                elif final_score > 0.6:
+                    threat_type = "malware"
+                else:
+                    threat_type = "suspicious"
+            
+            # Déterminer la sévérité
+            severity = "low"
+            if final_score > 0.8:
+                severity = "high"
+            elif final_score > 0.6:
+                severity = "medium"
+            
+            # Générer des recommandations
+            recommendations = []
+            if is_threat:
+                recommendations.extend([
+                    "Ne pas exécuter le fichier suspect",
+                    "Isoler la machine du réseau si possible",
+                    "Contacter CERT-TG au (+228) 70 54 93 25",
+                    "Ne jamais payer la rançon"
+                ])
+            else:
+                recommendations.append("Fichier analysé et considéré comme sûr")
+            
+            return {
+                'is_threat': is_threat,
+                'confidence': final_score,
+                'threat_type': threat_type,
+                'severity': severity,
+                'risk_level': self._calculate_risk_level(final_score),
+                'final_score': final_score,
+                'recommendations': recommendations,
+                'timestamp': datetime.now().isoformat(),
+                'analysis_method': 'hybrid'
+            }
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de la décision finale: {e}")
+            return {
+                'is_threat': False,
+                'confidence': 0.0,
+                'threat_type': 'unknown',
+                'severity': 'low',
+                'risk_level': 'safe',
+                'final_score': 0.0,
+                'recommendations': ["Erreur lors de l'analyse"],
+                'timestamp': datetime.now().isoformat(),
+                'analysis_method': 'hybrid_error'
+            }
+    
+
     
     def _generate_recommendations(self, combined_result: Dict) -> List[str]:
         """Générer des recommandations basées sur l'analyse"""

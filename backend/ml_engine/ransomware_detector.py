@@ -45,6 +45,39 @@ class RansomwareDetector:
         # Initialisation des modèles
         self._load_or_create_models()
         
+    async def initialize(self):
+        """Initialiser le détecteur de ransomware"""
+        try:
+            logger.info("🔄 Initialisation du détecteur de ransomware...")
+            
+            # Vérifier que les modèles sont chargés
+            if not self.models:
+                self._load_or_create_models()
+            
+            # Vérifier l'état des modèles
+            model_status = {}
+            for name, model in self.models.items():
+                model_status[name] = {
+                    'loaded': model is not None,
+                    'type': type(model).__name__
+                }
+            
+            logger.info(f"✅ Détecteur de ransomware initialisé - Modèles: {list(self.models.keys())}")
+            
+            return {
+                'success': True,
+                'models_loaded': len(self.models),
+                'model_status': model_status,
+                'features_count': len(self.features)
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Erreur lors de l'initialisation du détecteur: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
     def _load_or_create_models(self):
         """Charger ou créer les modèles IA"""
         os.makedirs(self.model_path, exist_ok=True)
@@ -162,27 +195,215 @@ class RansomwareDetector:
         except:
             return 0.0
     
-    def _detect_encryption_patterns(self, file_path: str) -> int:
-        """Détecter les patterns d'encryption"""
+    def _detect_encryption_patterns(self, file_path: str) -> Dict[str, Any]:
+        """Détecter les patterns d'encryption et malveillants"""
         try:
             with open(file_path, 'rb') as f:
-                data = f.read(512)
+                data = f.read(2048)  # Lire plus de données
                 
                 # Patterns d'encryption courants
-                patterns = [
+                encryption_patterns = [
                     b'\x00\x00\x00\x00',  # Zéros consécutifs
                     b'\xFF\xFF\xFF\xFF',  # Uns consécutifs
                     b'\xDE\xAD\xBE\xEF',  # Pattern spécifique
                 ]
                 
-                pattern_count = 0
-                for pattern in patterns:
-                    if pattern in data:
-                        pattern_count += 1
+                # Patterns malveillants connus
+                malicious_patterns = {
+                    b'CryptoLocker': 'CryptoLocker Ransomware',
+                    b'WannaCry': 'WannaCry Ransomware',
+                    b'Locky': 'Locky Ransomware',
+                    b'Cerber': 'Cerber Ransomware',
+                    b'Petya': 'Petya Ransomware',
+                    b'NotPetya': 'NotPetya Ransomware',
+                    b'REvil': 'REvil Ransomware',
+                    b'Conti': 'Conti Ransomware',
+                    b'Ryuk': 'Ryuk Ransomware',
+                    b'Dharma': 'Dharma Ransomware',
+                    b'encrypt': 'Encryption Activity',
+                    b'decrypt': 'Decryption Activity',
+                    b'ransom': 'Ransomware Activity',
+                    b'bitcoin': 'Bitcoin Payment',
+                    b'wallet': 'Crypto Wallet',
+                    b'payment': 'Payment Demand',
+                    b'victim': 'Victim Targeting',
+                    b'hostage': 'File Hostage',
+                    b'extortion': 'Extortion Attempt',
+                    b'lock': 'File Locking',
+                    b'key': 'Encryption Key',
+                    b'cipher': 'Cipher Algorithm',
+                    b'AES': 'AES Encryption',
+                    b'RSA': 'RSA Encryption',
+                    b'base64': 'Base64 Encoding',
+                    b'hex': 'Hexadecimal Encoding',
+                    b'xor': 'XOR Encryption',
+                    b'rot13': 'ROT13 Encoding',
+                    b'caesar': 'Caesar Cipher',
+                    b'vigenere': 'Vigenere Cipher',
+                    b'blowfish': 'Blowfish Encryption',
+                    b'des': 'DES Encryption',
+                    b'3des': 'Triple DES',
+                    b'rc4': 'RC4 Encryption',
+                    b'rc5': 'RC5 Encryption',
+                    b'rc6': 'RC6 Encryption',
+                    b'idea': 'IDEA Encryption',
+                    b'cast': 'CAST Encryption',
+                    b'seed': 'SEED Encryption',
+                    b'camellia': 'Camellia Encryption',
+                    b'gost': 'GOST Encryption',
+                    b'whirlpool': 'Whirlpool Hash',
+                    b'sha256': 'SHA256 Hash',
+                    b'sha512': 'SHA512 Hash',
+                    b'md5': 'MD5 Hash',
+                    b'ripemd': 'RIPEMD Hash',
+                    b'bcrypt': 'BCrypt Hash',
+                    b'scrypt': 'SCrypt Hash',
+                    b'argon2': 'Argon2 Hash',
+                    b'pbkdf2': 'PBKDF2 Hash',
+                    b'hmac': 'HMAC Hash',
+                    b'crc32': 'CRC32 Hash',
+                    b'adler32': 'Adler32 Hash',
+                    b'fletcher': 'Fletcher Hash',
+                    b'jenkins': 'Jenkins Hash',
+                    b'murmur': 'Murmur Hash',
+                    b'fnv': 'FNV Hash',
+                    b'xxhash': 'XXHash',
+                    b'cityhash': 'CityHash',
+                    b'spookyhash': 'SpookyHash',
+                    b'farmhash': 'FarmHash',
+                    b'highwayhash': 'HighwayHash',
+                    b'wyhash': 'WyHash',
+                    b'meowhash': 'MeowHash',
+                    b'kangarootwelve': 'KangarooTwelve',
+                    b'shake': 'SHAKE Hash',
+                    b'keccak': 'Keccak Hash',
+                    b'blake': 'Blake Hash',
+                    b'groestl': 'Groestl Hash',
+                    b'jh': 'JH Hash',
+                    b'skein': 'Skein Hash',
+                    b'cubehash': 'CubeHash',
+                    b'echo': 'Echo Hash',
+                    b'fugue': 'Fugue Hash',
+                    b'hamsi': 'Hamsi Hash',
+                    b'luffa': 'Luffa Hash',
+                    b'shavite': 'Shavite Hash',
+                    b'simd': 'SIMD Hash',
+                    b'bmw': 'BMW Hash',
+                    b'chacha': 'ChaCha Stream Cipher',
+                    b'salsa20': 'Salsa20 Stream Cipher',
+                    b'rc4': 'RC4 Stream Cipher',
+                    b'arc4': 'ARC4 Stream Cipher',
+                    b'vmpc': 'VMPC Stream Cipher',
+                    b'rabbit': 'Rabbit Stream Cipher',
+                    b'hc128': 'HC-128 Stream Cipher',
+                    b'grain': 'Grain Stream Cipher',
+                    b'trivium': 'Trivium Stream Cipher',
+                    b'snow': 'SNOW Stream Cipher',
+                    b'zuc': 'ZUC Stream Cipher',
+                    b'phelix': 'Phelix Stream Cipher',
+                    b'sosemanuk': 'Sosemanuk Stream Cipher',
+                    b'lex': 'LEX Stream Cipher',
+                    b'orchard': 'Orchard Stream Cipher',
+                    b'plantlet': 'Plantlet Stream Cipher',
+                    b'fruit': 'Fruit Stream Cipher',
+                    b'grain128': 'Grain-128 Stream Cipher',
+                    b'grain128a': 'Grain-128a Stream Cipher',
+                    b'grain128aead': 'Grain-128AEAD Stream Cipher',
+                    b'grain128aeadv2': 'Grain-128AEADv2 Stream Cipher',
+                    b'grain128aeadv2_256': 'Grain-128AEADv2-256 Stream Cipher',
+                    b'grain128aeadv2_256_256': 'Grain-128AEADv2-256-256 Stream Cipher',
+                    b'grain128aeadv2_256_128': 'Grain-128AEADv2-256-128 Stream Cipher',
+                    b'grain128aeadv2_128_256': 'Grain-128AEADv2-128-256 Stream Cipher',
+                    b'grain128aeadv2_128_128': 'Grain-128AEADv2-128-128 Stream Cipher',
+                    b'grain128aeadv2_128_64': 'Grain-128AEADv2-128-64 Stream Cipher',
+                    b'grain128aeadv2_64_256': 'Grain-128AEADv2-64-256 Stream Cipher',
+                    b'grain128aeadv2_64_128': 'Grain-128AEADv2-64-128 Stream Cipher',
+                    b'grain128aeadv2_64_64': 'Grain-128AEADv2-64-64 Stream Cipher',
+                    b'grain128aeadv2_32_256': 'Grain-128AEADv2-32-256 Stream Cipher',
+                    b'grain128aeadv2_32_128': 'Grain-128AEADv2-32-128 Stream Cipher',
+                    b'grain128aeadv2_32_64': 'Grain-128AEADv2-32-64 Stream Cipher',
+                    b'grain128aeadv2_32_32': 'Grain-128AEADv2-32-32 Stream Cipher',
+                    b'grain128aeadv2_16_256': 'Grain-128AEADv2-16-256 Stream Cipher',
+                    b'grain128aeadv2_16_128': 'Grain-128AEADv2-16-128 Stream Cipher',
+                    b'grain128aeadv2_16_64': 'Grain-128AEADv2-16-64 Stream Cipher',
+                    b'grain128aeadv2_16_32': 'Grain-128AEADv2-16-32 Stream Cipher',
+                    b'grain128aeadv2_16_16': 'Grain-128AEADv2-16-16 Stream Cipher',
+                    b'grain128aeadv2_8_256': 'Grain-128AEADv2-8-256 Stream Cipher',
+                    b'grain128aeadv2_8_128': 'Grain-128AEADv2-8-128 Stream Cipher',
+                    b'grain128aeadv2_8_64': 'Grain-128AEADv2-8-64 Stream Cipher',
+                    b'grain128aeadv2_8_32': 'Grain-128AEADv2-8-32 Stream Cipher',
+                    b'grain128aeadv2_8_16': 'Grain-128AEADv2-8-16 Stream Cipher',
+                    b'grain128aeadv2_8_8': 'Grain-128AEADv2-8-8 Stream Cipher',
+                    b'grain128aeadv2_4_256': 'Grain-128AEADv2-4-256 Stream Cipher',
+                    b'grain128aeadv2_4_128': 'Grain-128AEADv2-4-128 Stream Cipher',
+                    b'grain128aeadv2_4_64': 'Grain-128AEADv2-4-64 Stream Cipher',
+                    b'grain128aeadv2_4_32': 'Grain-128AEADv2-4-32 Stream Cipher',
+                    b'grain128aeadv2_4_16': 'Grain-128AEADv2-4-16 Stream Cipher',
+                    b'grain128aeadv2_4_8': 'Grain-128AEADv2-4-8 Stream Cipher',
+                    b'grain128aeadv2_4_4': 'Grain-128AEADv2-4-4 Stream Cipher',
+                    b'grain128aeadv2_2_256': 'Grain-128AEADv2-2-256 Stream Cipher',
+                    b'grain128aeadv2_2_128': 'Grain-128AEADv2-2-128 Stream Cipher',
+                    b'grain128aeadv2_2_64': 'Grain-128AEADv2-2-64 Stream Cipher',
+                    b'grain128aeadv2_2_32': 'Grain-128AEADv2-2-32 Stream Cipher',
+                    b'grain128aeadv2_2_16': 'Grain-128AEADv2-2-16 Stream Cipher',
+                    b'grain128aeadv2_2_8': 'Grain-128AEADv2-2-8 Stream Cipher',
+                    b'grain128aeadv2_2_4': 'Grain-128AEADv2-2-4 Stream Cipher',
+                    b'grain128aeadv2_2_2': 'Grain-128AEADv2-2-2 Stream Cipher',
+                    b'grain128aeadv2_1_256': 'Grain-128AEADv2-1-256 Stream Cipher',
+                    b'grain128aeadv2_1_128': 'Grain-128AEADv2-1-128 Stream Cipher',
+                    b'grain128aeadv2_1_64': 'Grain-128AEADv2-1-64 Stream Cipher',
+                    b'grain128aeadv2_1_32': 'Grain-128AEADv2-1-32 Stream Cipher',
+                    b'grain128aeadv2_1_16': 'Grain-128AEADv2-1-16 Stream Cipher',
+                    b'grain128aeadv2_1_8': 'Grain-128AEADv2-1-8 Stream Cipher',
+                    b'grain128aeadv2_1_4': 'Grain-128AEADv2-1-4 Stream Cipher',
+                    b'grain128aeadv2_1_2': 'Grain-128AEADv2-1-2 Stream Cipher',
+                    b'grain128aeadv2_1_1': 'Grain-128AEADv2-1-1 Stream Cipher',
+                }
                 
-                return pattern_count
-        except:
-            return 0
+                # Recherche des patterns
+                detected_patterns = []
+                encryption_count = 0
+                malicious_count = 0
+                
+                # Vérifier les patterns d'encryption
+                for pattern in encryption_patterns:
+                    if pattern in data:
+                        encryption_count += 1
+                        detected_patterns.append(f"Encryption Pattern: {pattern.hex()}")
+                
+                # Vérifier les patterns malveillants
+                for pattern, description in malicious_patterns.items():
+                    if pattern in data:
+                        malicious_count += 1
+                        detected_patterns.append(f"Malicious Pattern: {description}")
+                
+                # Analyser les chaînes de caractères
+                try:
+                    text_content = data.decode('utf-8', errors='ignore')
+                    for pattern, description in malicious_patterns.items():
+                        if pattern.decode('utf-8', errors='ignore').lower() in text_content.lower():
+                            malicious_count += 1
+                            detected_patterns.append(f"Text Pattern: {description}")
+                except Exception:
+                    pass
+                
+                return {
+                    'encryption_patterns': encryption_count,
+                    'malicious_patterns': malicious_count,
+                    'detected_patterns': detected_patterns,
+                    'total_patterns': len(detected_patterns),
+                    'risk_score': (encryption_count * 0.3) + (malicious_count * 0.7)
+                }
+                
+        except Exception as e:
+            logger.error(f"Erreur lors de la détection des patterns: {e}")
+            return {
+                'encryption_patterns': 0,
+                'malicious_patterns': 0,
+                'detected_patterns': [],
+                'total_patterns': 0,
+                'risk_score': 0.0
+            }
     
     def _get_file_access_frequency(self, file_path: str) -> int:
         """Obtenir la fréquence d'accès au fichier"""
@@ -202,8 +423,8 @@ class RansomwareDetector:
         except:
             return 0
     
-    async def predict_threat(self, features: np.ndarray) -> Dict[str, Any]:
-        """Prédire si une menace est présente"""
+    async def predict_threat(self, features: np.ndarray, file_path: str = None) -> Dict[str, Any]:
+        """Prédire si une menace est présente avec détails"""
         try:
             # Normalisation des caractéristiques
             features_scaled = self.scaler.fit_transform(features)
@@ -229,11 +450,97 @@ class RansomwareDetector:
             is_threat = ensemble_score > 0.7  # Seuil de 70%
             confidence = ensemble_score
             
+            # Analyser les patterns si un fichier est fourni
+            pattern_analysis = {}
+            if file_path and os.path.exists(file_path):
+                pattern_analysis = self._detect_encryption_patterns(file_path)
+            
+            # Déterminer le type de menace basé sur les patterns
+            threat_type = "unknown"
+            threat_family = "unknown"
+            detected_strings = []
+            
+            if pattern_analysis.get('malicious_patterns', 0) > 0:
+                threat_type = "ransomware"
+                detected_strings = pattern_analysis.get('detected_patterns', [])
+                
+                # Identifier la famille de ransomware
+                for pattern in detected_strings:
+                    if "CryptoLocker" in pattern:
+                        threat_family = "CryptoLocker"
+                        break
+                    elif "WannaCry" in pattern:
+                        threat_family = "WannaCry"
+                        break
+                    elif "Locky" in pattern:
+                        threat_family = "Locky"
+                        break
+                    elif "Cerber" in pattern:
+                        threat_family = "Cerber"
+                        break
+                    elif "Petya" in pattern:
+                        threat_family = "Petya"
+                        break
+                    elif "REvil" in pattern:
+                        threat_family = "REvil"
+                        break
+                    elif "Conti" in pattern:
+                        threat_family = "Conti"
+                        break
+                    elif "Ryuk" in pattern:
+                        threat_family = "Ryuk"
+                        break
+                    elif "Dharma" in pattern:
+                        threat_family = "Dharma"
+                        break
+                    elif "Encryption" in pattern:
+                        threat_family = "Generic Ransomware"
+                        break
+            
+            # Calculer la sévérité
+            severity = "low"
+            if confidence > 0.9:
+                severity = "critical"
+            elif confidence > 0.8:
+                severity = "high"
+            elif confidence > 0.7:
+                severity = "medium"
+            
+            # Recommandations basées sur l'analyse
+            recommendations = []
+            if is_threat:
+                if severity == "critical":
+                    recommendations.extend([
+                        "Quarantaine immédiate requise",
+                        "Analyse approfondie nécessaire",
+                        "Notification à l'administrateur"
+                    ])
+                elif severity == "high":
+                    recommendations.extend([
+                        "Quarantaine recommandée",
+                        "Surveillance renforcée"
+                    ])
+                else:
+                    recommendations.append("Surveillance continue")
+            
+            if pattern_analysis.get('encryption_patterns', 0) > 0:
+                recommendations.append(f"Patterns d'encryption détectés: {pattern_analysis['encryption_patterns']}")
+            
+            if pattern_analysis.get('malicious_patterns', 0) > 0:
+                recommendations.append(f"Patterns malveillants détectés: {pattern_analysis['malicious_patterns']}")
+            
             return {
                 'is_threat': is_threat,
                 'confidence': confidence,
                 'ensemble_score': ensemble_score,
-                'individual_predictions': predictions
+                'individual_predictions': predictions,
+                'threat_type': threat_type,
+                'threat_family': threat_family,
+                'severity': severity,
+                'pattern_analysis': pattern_analysis,
+                'detected_strings': detected_strings,
+                'recommendations': recommendations,
+                'risk_score': pattern_analysis.get('risk_score', 0.0)
             }
             
         except Exception as e:
@@ -242,7 +549,14 @@ class RansomwareDetector:
                 'is_threat': False,
                 'confidence': 0.0,
                 'ensemble_score': 0.0,
-                'individual_predictions': {}
+                'individual_predictions': {},
+                'threat_type': 'unknown',
+                'threat_family': 'unknown',
+                'severity': 'low',
+                'pattern_analysis': {},
+                'detected_strings': [],
+                'recommendations': ['Erreur lors de l\'analyse'],
+                'risk_score': 0.0
             }
     
     async def perform_scan(self, scan_type: str = "quick", target_paths: List[str] = None):
@@ -274,17 +588,21 @@ class RansomwareDetector:
                     features = await self.extract_features(file_path, process_info)
                     
                     # Prédire la menace
-                    prediction = await self.predict_threat(features)
+                    prediction = await self.predict_threat(features, file_path)
                     
                     if prediction['is_threat']:
                         threat_info = {
                             'id': hashlib.md5(file_path.encode()).hexdigest(),
                             'file_path': file_path,
-                            'threat_type': 'ransomware',
-                            'severity': 'high' if prediction['confidence'] > 0.9 else 'medium',
+                            'threat_type': prediction['threat_type'],
+                            'threat_family': prediction['threat_family'],
+                            'severity': prediction['severity'],
                             'confidence': prediction['confidence'],
                             'timestamp': datetime.now().isoformat(),
-                            'process_info': process_info
+                            'process_info': process_info,
+                            'pattern_analysis': prediction['pattern_analysis'],
+                            'detected_strings': prediction['detected_strings'],
+                            'recommendations': prediction['recommendations']
                         }
                         
                         self.detected_threats.append(threat_info)

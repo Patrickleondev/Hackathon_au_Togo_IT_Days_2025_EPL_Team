@@ -98,32 +98,51 @@ class HuggingFaceDetector:
             return ""
     
     def _detect_suspicious_patterns(self, file_path: str) -> List[str]:
-        """Détecter les patterns suspects dans le fichier"""
-        patterns = []
-        
+        """Détecter les patterns suspects dans un fichier"""
         try:
             with open(file_path, 'rb') as f:
-                content = f.read(2048)  # Lire les premiers 2KB
+                data = f.read(4096)  # Lire les premiers 4KB
             
-            # Patterns de fichiers suspects
-            suspicious_patterns = [
-                b'PE\x00\x00',  # Header PE
-                b'MZ',          # Header MZ
-                b'This program cannot be run in DOS mode',
-                b'CreateFile', 'ReadFile', 'WriteFile',
-                b'RegCreateKey', 'RegSetValue',
-                b'InternetOpen', 'HttpOpenRequest',
-                b'CryptEncrypt', 'CryptDecrypt'
+            if not data:
+                return []
+            
+            suspicious_patterns = []
+            
+            # Patterns suspects en bytes
+            patterns = [
+                b'ransomware', b'encrypt', b'decrypt', b'crypto',
+                b'bitcoin', b'wallet', b'payment', b'ransom',
+                b'lock', b'unlock', b'key', b'password',
+                b'virus', b'malware', b'trojan', b'backdoor',
+                b'rootkit', b'stealer', b'logger', b'spyware'
             ]
             
-            for pattern in suspicious_patterns:
-                if pattern in content:
-                    patterns.append(pattern.decode('utf-8', errors='ignore'))
+            # Chercher les patterns
+            for pattern in patterns:
+                if pattern in data:
+                    suspicious_patterns.append(pattern.decode('utf-8', errors='ignore'))
+            
+            # Chercher des chaînes de caractères suspectes
+            try:
+                text_content = data.decode('utf-8', errors='ignore').lower()
+                text_patterns = [
+                    'ransomware', 'encrypt', 'decrypt', 'crypto',
+                    'bitcoin', 'wallet', 'payment', 'ransom',
+                    'lock', 'unlock', 'key', 'password',
+                    'virus', 'malware', 'trojan', 'backdoor'
+                ]
+                
+                for pattern in text_patterns:
+                    if pattern in text_content:
+                        suspicious_patterns.append(pattern)
+            except:
+                pass  # Ignorer les erreurs de décodage
+            
+            return list(set(suspicious_patterns))  # Supprimer les doublons
             
         except Exception as e:
             logger.error(f"Erreur lors de la détection des patterns: {e}")
-        
-        return patterns
+            return []
     
     async def analyze_with_huggingface(self, file_path: str, process_info: Dict) -> Dict[str, Any]:
         """Analyser un fichier avec les techniques NLP simplifiées"""
