@@ -30,7 +30,19 @@ const Threats: React.FC = () => {
   const fetchThreats = async () => {
     try {
       const response = await axios.get('/api/threats');
-      setThreats(response.data.threats || []);
+      const raw = response.data.threats || [];
+      const normalized: Threat[] = raw.map((t: any) => ({
+        id: t.id,
+        threat_type: t.threat_type || t.type_translated || t.type || 'unknown',
+        severity: t.severity || 'low',
+        description: t.description || '',
+        timestamp: t.timestamp || new Date().toISOString(),
+        file_path: t.file_path,
+        process_name: t.process_name,
+        confidence: typeof t.confidence === 'number' ? t.confidence : undefined,
+        quarantined: Boolean(t.quarantined)
+      }));
+      setThreats(normalized);
       setError(null);
     } catch (err) {
       console.error('Erreur lors de la récupération des menaces:', err);

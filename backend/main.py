@@ -72,6 +72,13 @@ class SystemStatus(BaseModel):
     cpu_usage: float
     memory_usage: float
     hybrid_system_active: bool = True
+    # Champs additionnels pour le frontend
+    disk_usage: float | None = None
+    network_activity: float | None = None
+    active_processes: int | None = None
+    protection_enabled: bool | None = None
+    real_time_monitoring: bool | None = None
+    last_threat_detected: datetime | None = None
 
 class ThreatAlert(BaseModel):
     threat_id: str
@@ -212,15 +219,43 @@ async def get_system_status():
         # Vérifier l'état du système hybride
         hybrid_active = hybrid_detector.initialized
         
-        return SystemStatus(
-            status="active",
-            threats_detected=threats_count,
-            files_protected=files_protected,
-            last_scan=datetime.now(),
-            cpu_usage=cpu_percent,
-            memory_usage=memory.percent,
-            hybrid_system_active=hybrid_active
-        )
+        # Champs additionnels pour un dashboard plus riche
+        try:
+            net_io = psutil.net_io_counters()
+            network_activity = (getattr(net_io, 'bytes_sent', 0) + getattr(net_io, 'bytes_recv', 0)) / (1024 * 1024)
+        except Exception:
+            network_activity = 0.0
+        
+        try:
+            active_processes = len(list(psutil.process_iter()))
+        except Exception:
+            active_processes = 0
+        
+        protection_enabled = True
+        real_time_monitoring = system_monitor.is_monitoring
+        last_threat_detected = None
+        if detector.detected_threats:
+            try:
+                last_threat_detected = detector.detected_threats[-1].get("timestamp")
+            except Exception:
+                last_threat_detected = None
+        
+        return {
+            "status": "active",
+            "threats_detected": threats_count,
+            "files_protected": files_protected,
+            "last_scan": datetime.now(),
+            "cpu_usage": cpu_percent,
+            "memory_usage": memory.percent,
+            "hybrid_system_active": hybrid_active,
+            # Champs additionnels
+            "disk_usage": disk.percent,
+            "network_activity": float(network_activity),
+            "active_processes": active_processes,
+            "protection_enabled": protection_enabled,
+            "real_time_monitoring": real_time_monitoring,
+            "last_threat_detected": last_threat_detected,
+        }
     except Exception as e:
         logger.error(f"Erreur lors de la récupération du statut: {e}")
         raise HTTPException(status_code=500, detail="Erreur interne du serveur")
@@ -247,6 +282,7 @@ async def get_threats():
             threats_list.append({
                 "id": f"threat_{i}",
                 "type": threat.get("threat_type", "unknown"),
+                "threat_type": threat.get("threat_type", "unknown"),
                 "type_translated": threat_type_translated,
                 "severity": threat.get("severity", "medium"),
                 "severity_translated": severity_translated,
@@ -268,6 +304,7 @@ async def get_threats():
             threats_list.append({
                 "id": f"activity_{i}",
                 "type": activity_type,
+                "threat_type": activity_type,
                 "type_translated": activity_type_translated,
                 "severity": activity.get("severity", "low"),
                 "severity_translated": severity_translated,

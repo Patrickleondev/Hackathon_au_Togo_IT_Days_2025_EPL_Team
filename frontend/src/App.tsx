@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { Shield, Activity, AlertTriangle, Settings, BarChart3, Upload, Menu, X, Search } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import Threats from './components/Threats';
@@ -179,13 +179,13 @@ function App() {
 // Composant NavLink amélioré
 function NavLink({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) {
   return (
-    <a
-      href={to}
+    <Link
+      to={to}
       className="flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-all duration-200 group"
     >
       <div className="w-5 h-5 group-hover:scale-110 transition-transform duration-200">{icon}</div>
       <span className="font-medium">{label}</span>
-    </a>
+    </Link>
   );
 }
 

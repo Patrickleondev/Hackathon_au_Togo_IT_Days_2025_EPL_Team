@@ -183,12 +183,7 @@ const Scan: React.FC = () => {
                 <p className="text-sm text-gray-600">{scanStatus.current_path}</p>
               </div>
             </div>
-            <button
-              onClick={stopScan}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-            >
-              Arrêter
-            </button>
+            {/* Bouton Arrêter temporairement masqué (endpoint indisponible) */}
           </div>
 
           {/* Barre de progression */}

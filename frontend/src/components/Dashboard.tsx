@@ -301,7 +301,7 @@ const Dashboard: React.FC = () => {
                   <div>
                     <p className="text-sm font-medium text-gray-900">{threat.description}</p>
                     <p className="text-xs text-gray-500">
-                      {new Date(threat.timestamp).toLocaleString('fr-FR')} • Confiance: {threat.confidence.toFixed(1)}%
+                      {new Date(threat.timestamp).toLocaleString('fr-FR')} • Confiance: {(threat.confidence * 100).toFixed(1)}%
                     </p>
                   </div>
                 </div>
