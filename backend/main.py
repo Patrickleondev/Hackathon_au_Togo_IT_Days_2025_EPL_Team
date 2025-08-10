@@ -19,6 +19,7 @@ import shutil
 from typing import Dict, Any, List
 import psutil
 import numpy as np
+import aiohttp
 
 from ml_engine.ransomware_detector import RansomwareDetector
 from ml_engine.hybrid_detector import HybridDetector
@@ -28,7 +29,7 @@ from ml_engine.model_loader import get_model_loader
 from ml_engine.threat_response import ThreatResponse
 from ml_engine.advanced_hooks import AdvancedSystemHooks
 from ml_engine.threat_intelligence import ThreatIntelligence
-from utils.config import settings
+from utils.config import settings, MODELS_DIR
 from utils.i18n import i18n
 from ml_engine.ultra_detector import UltraDetector
 
@@ -93,6 +94,10 @@ class ScanRequest(BaseModel):
 class FileAnalysisRequest(BaseModel):
     file_path: str
     process_info: dict = {}
+
+class ModelImportRequest(BaseModel):
+    url: str  # URL HTTP(s) vers un fichier .pkl ou un zip contenant des modèles
+    filename: str | None = None  # Nom de fichier cible (optionnel)
 
 # Initialisation des composants
 detector = RansomwareDetector()
@@ -899,30 +904,79 @@ async def get_statistics():
 
 @app.get("/api/models/status")
 async def get_models_status():
-    """Obtenir le statut des modèles IA"""
     try:
-        # Retourner des données de base pour que le frontend fonctionne
+        status = model_loader.get_model_status()
         return {
-            "models": [
-                {
-                    "name": "Système Hybride",
-                    "status": "active",
-                    "accuracy": 0.95,
-                    "last_updated": datetime.now().isoformat(),
-                    "predictions_today": 3
-                },
-                {
-                    "name": "Détection Avancée",
-                    "status": "active",
-                    "accuracy": 0.92,
-                    "last_updated": datetime.now().isoformat(),
-                    "predictions_today": 2
-                }
-            ]
+            "success": True,
+            "status": status,
+            "models_dir": MODELS_DIR,
+            "timestamp": datetime.now().isoformat()
         }
     except Exception as e:
-        logger.error(f"Erreur lors de la récupération du statut des modèles: {e}")
-        raise HTTPException(status_code=500, detail="Erreur interne du serveur")
+        logger.error(f"Erreur statut modèles: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/models/reload")
+async def reload_models():
+    try:
+        result = model_loader.reload_models()
+        return {"success": True, "result": result}
+    except Exception as e:
+        logger.error(f"Erreur reload modèles: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/models/upload")
+async def upload_model_file(file: UploadFile = File(...)):
+    """Uploader un fichier modèle .pkl ou un zip de modèles vers le dossier modèles"""
+    try:
+        os.makedirs(MODELS_DIR, exist_ok=True)
+        suffix = os.path.splitext(file.filename)[1]
+        target_name = file.filename
+        target_path = os.path.join(MODELS_DIR, target_name)
+        with open(target_path, 'wb') as out:
+            shutil.copyfileobj(file.file, out)
+        # Optionnel: dézipper si .zip
+        if target_name.lower().endswith('.zip'):
+            import zipfile
+            with zipfile.ZipFile(target_path, 'r') as zip_ref:
+                zip_ref.extractall(MODELS_DIR)
+        # Recharger
+        result = model_loader.reload_models()
+        return {"success": True, "stored": target_name, "reloaded": True, "result": result}
+    except Exception as e:
+        logger.error(f"Erreur upload modèle: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/models/import")
+async def import_model_from_url(req: ModelImportRequest):
+    """Télécharger un modèle depuis une URL HTTP(s) dans le dossier modèles, puis recharger"""
+    try:
+        os.makedirs(MODELS_DIR, exist_ok=True)
+        url = req.url
+        filename = req.filename or os.path.basename(url.split('?')[0]) or f"model_{int(datetime.now().timestamp())}.pkl"
+        target_path = os.path.join(MODELS_DIR, filename)
+        # Télécharger
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status != 200:
+                    raise HTTPException(status_code=400, detail=f"Téléchargement impossible: HTTP {resp.status}")
+                with open(target_path, 'wb') as f:
+                    while True:
+                        chunk = await resp.content.read(1024 * 1024)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+        # Dézip si nécessaire
+        if filename.lower().endswith('.zip'):
+            import zipfile
+            with zipfile.ZipFile(target_path, 'r') as zip_ref:
+                zip_ref.extractall(MODELS_DIR)
+        # Recharger
+        result = model_loader.reload_models()
+        return {"success": True, "imported": filename, "reloaded": True, "result": result}
+    except Exception as e:
+        logger.error(f"Erreur import modèle: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/models/fine-tune")
 async def fine_tune_models(background_tasks: BackgroundTasks):

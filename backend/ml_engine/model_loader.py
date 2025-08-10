@@ -9,6 +9,7 @@ import json
 import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
+from utils.config import MODELS_DIR  # utilisation du dossier modèles centralisé
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ class ModelLoader:
     """Chargeur de modèles optimisé pour le hackathon"""
     
     def __init__(self):
-        self.models_dir = "models/"
+        self.models_dir = MODELS_DIR
         self.models_cache = {}
         self.load_status = {
             'models_loaded': False,
