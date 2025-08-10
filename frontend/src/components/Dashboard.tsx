@@ -47,6 +47,8 @@ const Dashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [advancedHooks, setAdvancedHooks] = useState<{is_monitoring: boolean; file_watchers_count: number; process_watchers_count: number; registry_watchers_count: number; callbacks_count: number;} | null>(null);
+  const [threatIntel, setThreatIntel] = useState<{status: string; statistics: any; last_update: string} | null>(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -73,6 +75,18 @@ const Dashboard: React.FC = () => {
       // Récupérer le statut des modèles
       const modelsResponse = await axios.get('/api/models/status');
       setModelStatus(modelsResponse.data.models || []);
+
+      // Récupérer hooks système avancés
+      try {
+        const hooksResp = await axios.get('/api/advanced-hooks/status');
+        setAdvancedHooks(hooksResp.data);
+      } catch {}
+
+      // Récupérer threat intelligence
+      try {
+        const tiResp = await axios.get('/api/threat-intelligence/status');
+        setThreatIntel(tiResp.data);
+      } catch {}
       
       setError(null);
       setLastRefresh(new Date());
@@ -280,6 +294,46 @@ const Dashboard: React.FC = () => {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Hooks Système (avancé) */}
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Hooks système</h3>
+          </div>
+          {advancedHooks ? (
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="flex justify-between"><span>Monitoring</span><span className={advancedHooks.is_monitoring ? 'text-green-600' : 'text-red-600'}>{advancedHooks.is_monitoring ? 'Actif' : 'Inactif'}</span></div>
+              <div className="flex justify-between"><span>Watchers fichiers</span><span className="font-medium">{advancedHooks.file_watchers_count}</span></div>
+              <div className="flex justify-between"><span>Watchers process</span><span className="font-medium">{advancedHooks.process_watchers_count}</span></div>
+              <div className="flex justify-between"><span>Watchers registre</span><span className="font-medium">{advancedHooks.registry_watchers_count}</span></div>
+              <div className="flex justify-between"><span>Callbacks</span><span className="font-medium">{advancedHooks.callbacks_count}</span></div>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">Données non disponibles</p>
+          )}
+        </div>
+      
+        {/* Threat Intelligence */}
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Threat Intelligence</h3>
+          </div>
+          {threatIntel ? (
+            <div className="text-sm space-y-2">
+              <div className="flex justify-between"><span>Statut</span><span className={threatIntel.status === 'active' ? 'text-green-600' : 'text-red-600'}>{threatIntel.status}</span></div>
+              <div className="flex justify-between"><span>Dernière màj</span><span className="font-medium">{new Date(threatIntel.last_update).toLocaleString('fr-FR')}</span></div>
+              {threatIntel.statistics && (
+                <div className="grid grid-cols-2 gap-2">
+                  {Object.entries(threatIntel.statistics).slice(0,4).map(([k,v]) => (
+                    <div key={k} className="flex justify-between"><span>{k}</span><span className="font-medium">{String(v)}</span></div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">Données non disponibles</p>
+          )}
         </div>
       </div>
 

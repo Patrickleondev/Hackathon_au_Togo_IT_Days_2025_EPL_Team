@@ -403,6 +403,16 @@ async def get_scan_status_with_id(scan_id: str):
         logger.error(f"Erreur lors de la récupération du statut du scan {scan_id}: {e}")
         raise HTTPException(status_code=500, detail="Erreur lors de la récupération du statut")
 
+@app.post("/api/scan/stop")
+async def stop_scan():
+    """Arrêter le scan en cours si possible"""
+    try:
+        stopped = await detector.stop_scan()
+        return {"success": True, "stopped": bool(stopped)}
+    except Exception as e:
+        logger.error(f"Erreur lors de l'arrêt du scan: {e}")
+        raise HTTPException(status_code=500, detail="Erreur lors de l'arrêt du scan")
+
 
 @app.get("/api/monitoring/network")
 async def get_network_monitoring():
