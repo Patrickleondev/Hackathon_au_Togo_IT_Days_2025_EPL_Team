@@ -4,7 +4,7 @@ RansomGuard AI - Hackathon Togo IT Days 2025
 """
 
 import numpy as np
-import pandas as pd
+# import pandas as pd  # non requis pour le slice de test
 import logging
 from typing import Dict, List, Any, Optional, Tuple
 import os

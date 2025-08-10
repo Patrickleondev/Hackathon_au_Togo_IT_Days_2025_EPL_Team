@@ -4,7 +4,7 @@ RansomGuard AI - Hackathon Togo IT Days 2025
 """
 
 import numpy as np
-import pandas as pd
+# import pandas as pd  # supprimé: non utilisé
 try:
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.svm import SVC
@@ -23,7 +23,18 @@ except Exception:
             return X
     StandardScaler = _DummyScaler
     SKLEARN_AVAILABLE = False
-from sklearn.model_selection import train_test_split
+try:
+    from sklearn.model_selection import train_test_split  # type: ignore
+except Exception:
+    def train_test_split(X, y, test_size=0.2, random_state=None, shuffle=True):
+        n = len(X)
+        idx = np.arange(n)
+        if shuffle:
+            rng = np.random.default_rng(random_state)
+            rng.shuffle(idx)
+        split = int(n * (1 - float(test_size)))
+        X_idx_train, X_idx_test = idx[:split], idx[split:]
+        return X[X_idx_train], X[X_idx_test], y[X_idx_train], y[X_idx_test]
 import joblib
 import os
 import logging

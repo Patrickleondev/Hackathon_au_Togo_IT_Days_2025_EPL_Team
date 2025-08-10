@@ -1,0 +1,1 @@
+alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"Beacon small GET every ~60s"; flow:established,to_server; content:"GET"; http.method; dsize:<200; detection_filter: track by_src, count 5, seconds 360; classtype:trojan-activity; sid:900001; rev:1;)
