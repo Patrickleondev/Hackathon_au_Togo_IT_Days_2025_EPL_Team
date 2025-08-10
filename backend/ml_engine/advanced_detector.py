@@ -13,8 +13,20 @@ import hashlib
 import asyncio
 from datetime import datetime
 import joblib
-from sklearn.ensemble import IsolationForest, RandomForestClassifier
-from sklearn.preprocessing import StandardScaler
+try:
+    from sklearn.ensemble import IsolationForest, RandomForestClassifier
+    from sklearn.preprocessing import StandardScaler
+    SKLEARN_AVAILABLE = True
+except Exception:
+    IsolationForest = None
+    RandomForestClassifier = None
+    class _DummyScaler:
+        def fit(self, X):
+            return self
+        def transform(self, X):
+            return X
+    StandardScaler = _DummyScaler
+    SKLEARN_AVAILABLE = False
 import psutil
 import threading
 import queue
@@ -47,7 +59,7 @@ class EvasionDetector:
         self.isolation_forest = IsolationForest(
             contamination=0.1,
             random_state=42
-        )
+        ) if SKLEARN_AVAILABLE else None
         
     def detect_evasion_techniques(self, file_path: str, process_info: Dict) -> Dict[str, Any]:
         """Détecter les techniques d'évasion"""
@@ -67,11 +79,16 @@ class EvasionDetector:
         # Détection d'anomalies avec Isolation Forest
         features = self._extract_evasion_features(file_path, process_info)
         if len(features) > 0:
-            try:
-                anomaly_score = self.isolation_forest.fit_predict([features])[0]
-                evasion_scores['anomaly_detection'] = 1.0 if anomaly_score == -1 else 0.0
-            except:
-                evasion_scores['anomaly_detection'] = 0.0
+            if self.isolation_forest is not None:
+                try:
+                    anomaly_score = self.isolation_forest.fit_predict([features])[0]
+                    evasion_scores['anomaly_detection'] = 1.0 if anomaly_score == -1 else 0.0
+                except:
+                    evasion_scores['anomaly_detection'] = 0.0
+            else:
+                # Fallback heuristique: entropie et taille élevées
+                size, entropy = features[0], features[1] if len(features) > 1 else (0, 0)
+                evasion_scores['anomaly_detection'] = 1.0 if (entropy and entropy > 7.0) else 0.0
         
         return evasion_scores
     
@@ -126,7 +143,7 @@ class EvasionDetector:
             
             suspicious_patterns = []
             
-            # Patterns suspects en bytes
+            # Patterns suspects en bytes (élargis: C2, LOLBins, obfuscation, HTTP)
             patterns = [
                 b'ransomware', b'encrypt', b'decrypt', b'crypto',
                 b'bitcoin', b'wallet', b'payment', b'ransom',
@@ -138,7 +155,15 @@ class EvasionDetector:
                 b'CreateFile', b'ReadFile', b'WriteFile',
                 b'RegCreateKey', b'RegSetValue',
                 b'InternetOpen', b'HttpOpenRequest',
-                b'CryptEncrypt', b'CryptDecrypt'
+                b'CryptEncrypt', b'CryptDecrypt',
+                # C2 / beaconing / HTTP
+                b'User-Agent', b'GET', b'POST', b'http://', b'https://', b'Host:', b'Cookie:',
+                b'JA3', b'SNI', b'beacon', b'cobalt', b'cobaltstrike', b'metasploit', b'sliver', b'empire',
+                # LOLBins & living-off-the-land
+                b'powershell', b'PowerShell', b'IEX', b'FromBase64String', b'Invoke-WebRequest', b'Net.WebClient', b'DownloadString',
+                b'cmd.exe', b'/c', b'rundll32', b'regsvr32', b'wmic', b'bitsadmin', b'mshta', b'msbuild', b'installutil', b'certutil', b'cscript', b'wscript', b'curl', b'wget',
+                # Obfuscation / anti-analysis
+                b'AMSI', b'amsi', b'amsiInitFailed', b'ETW', b'NtDelayExecution', b'IsDebuggerPresent', b'unhook', b'blockdlls', b'syscall'
             ]
             
             # Chercher les patterns
@@ -146,7 +171,7 @@ class EvasionDetector:
                 if pattern in data:
                     suspicious_patterns.append(pattern.decode('utf-8', errors='ignore'))
             
-            # Chercher des chaînes de caractères suspectes
+            # Chercher des chaînes de caractères suspectes + DGA léger
             try:
                 text_content = data.decode('utf-8', errors='ignore').lower()
                 text_patterns = [
@@ -154,12 +179,41 @@ class EvasionDetector:
                     'bitcoin', 'wallet', 'payment', 'ransom',
                     'lock', 'unlock', 'key', 'password',
                     'virus', 'malware', 'trojan', 'backdoor',
-                    'this program cannot be run in dos mode'
+                    'this program cannot be run in dos mode',
+                    # C2/LOLbins
+                    'user-agent', 'beacon', 'cobalt', 'cobaltstrike', 'metasploit', 'sliver', 'empire',
+                    'powershell', 'iex', 'frombase64string', 'invoke-webrequest', 'net.webclient', 'downloadstring',
+                    'cmd.exe', 'rundll32', 'regsvr32', 'wmic', 'bitsadmin', 'mshta', 'msbuild', 'installutil', 'certutil', 'cscript', 'wscript', 'curl', 'wget'
                 ]
-                
                 for pattern in text_patterns:
                     if pattern in text_content:
                         suspicious_patterns.append(pattern)
+                    
+                    # Détection de domaines potentiellement DGA (entropie/ratio digits)
+                    import re as _re
+                    import math as _math
+                    def _char_entropy(s: str) -> float:
+                        if not s:
+                            return 0.0
+                        freq = {}
+                        for ch in s:
+                            freq[ch] = freq.get(ch, 0) + 1
+                        ent = 0.0
+                        n = len(s)
+                        for c in freq.values():
+                            p = c / n
+                            ent -= p * _math.log2(p)
+                        return ent
+                    domain_regex = _re.compile(r"\b[a-z0-9\-\.]{7,}\.[a-z]{2,}\b")
+                    for m in domain_regex.findall(text_content):
+                        token = m.strip('. ')
+                        if len(token) < 12:
+                            continue
+                        digits_ratio = sum(ch.isdigit() for ch in token) / max(1, len(token))
+                        ent = _char_entropy(token)
+                        # Heuristique: longueur élevée, entropie élevée, beaucoup de digits → suspect
+                        if ent >= 3.5 and (digits_ratio >= 0.2 or len(token) >= 20):
+                            suspicious_patterns.append(f"dga_like:{token}")
             except:
                 pass  # Ignorer les erreurs de décodage
             
@@ -262,18 +316,20 @@ class AdvancedHuggingFaceDetector:
         try:
             logger.info("🔄 Chargement des modèles avancés...")
             
-            # Classifieur Random Forest avancé
-            self.models['advanced_classifier'] = RandomForestClassifier(
-                n_estimators=200,
-                max_depth=10,
-                random_state=42
-            )
-            
-            # Détecteur d'anomalies
-            self.models['evasion_detector'] = IsolationForest(
-                contamination=0.1,
-                random_state=42
-            )
+            if SKLEARN_AVAILABLE:
+                self.models['advanced_classifier'] = RandomForestClassifier(
+                    n_estimators=200,
+                    max_depth=10,
+                    random_state=42
+                )
+                # Détecteur d'anomalies
+                self.models['evasion_detector'] = IsolationForest(
+                    contamination=0.1,
+                    random_state=42
+                )
+            else:
+                self.models['advanced_classifier'] = None
+                self.models['evasion_detector'] = None
             
             logger.info("✅ Modèles avancés chargés avec succès")
             

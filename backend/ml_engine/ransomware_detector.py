@@ -5,10 +5,24 @@ RansomGuard AI - Hackathon Togo IT Days 2025
 
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.svm import SVC
-from sklearn.neural_network import MLPClassifier
-from sklearn.preprocessing import StandardScaler
+try:
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.svm import SVC
+    from sklearn.neural_network import MLPClassifier
+    from sklearn.preprocessing import StandardScaler
+    SKLEARN_AVAILABLE = True
+except Exception:
+    RandomForestClassifier = None
+    SVC = None
+    MLPClassifier = None
+    from collections import namedtuple
+    class _DummyScaler:
+        def fit(self, X):
+            return self
+        def transform(self, X):
+            return X
+    StandardScaler = _DummyScaler
+    SKLEARN_AVAILABLE = False
 from sklearn.model_selection import train_test_split
 import joblib
 import os
@@ -82,6 +96,11 @@ class RansomwareDetector:
         """Charger ou créer les modèles IA"""
         os.makedirs(self.model_path, exist_ok=True)
         
+        if not SKLEARN_AVAILABLE:
+            self.models = {"fallback": True}
+            logger.warning("scikit-learn indisponible: activation d'un mode fallback heuristique")
+            return
+        
         # Modèles à utiliser
         model_configs = {
             'random_forest': RandomForestClassifier(n_estimators=100, random_state=42),
@@ -118,57 +137,31 @@ class RansomwareDetector:
         
         return model
     
-    async def extract_features(self, file_path: str, process_info: Dict) -> np.ndarray:
-        """Extraire les caractéristiques d'un fichier et processus"""
+    async def extract_features(self, file_path: str, process_info: Dict[str, Any]) -> np.ndarray:
+        """Extraire des features simples; rester compatible fallback"""
         try:
-            features = []
-            
-            # Caractéristiques du fichier
-            if os.path.exists(file_path):
-                file_size = os.path.getsize(file_path)
-                file_entropy = self._calculate_entropy(file_path)
-                file_extension = os.path.splitext(file_path)[1].lower()
-                
-                # Indicateurs d'encryption
-                encryption_indicators = self._detect_encryption_patterns(file_path)
-                
-                # Fréquence d'accès aux fichiers
-                file_access_frequency = self._get_file_access_frequency(file_path)
-                
-                # Temps de création/modification
-                stat = os.stat(file_path)
-                file_creation_time = stat.st_ctime
-                file_modification_time = stat.st_mtime
-                
-            else:
-                file_size = 0
-                file_entropy = 0
-                file_extension = ""
-                encryption_indicators = 0
-                file_access_frequency = 0
-                file_creation_time = 0
-                file_modification_time = 0
-            
-            # Caractéristiques du processus
-            process_cpu_usage = process_info.get('cpu_percent', 0)
-            process_memory_usage = process_info.get('memory_percent', 0)
-            network_connections = len(process_info.get('connections', []))
-            registry_changes = process_info.get('registry_changes', 0)
-            
-            # Assemblage des caractéristiques
-            features = [
-                file_entropy, file_size, hash(file_extension),
-                process_cpu_usage, process_memory_usage,
-                file_access_frequency, encryption_indicators,
-                network_connections, registry_changes,
-                file_creation_time, file_modification_time
-            ]
-            
-            return np.array(features).reshape(1, -1)
-            
-        except Exception as e:
-            logger.error(f"Erreur lors de l'extraction des caractéristiques: {e}")
-            return np.zeros((1, len(self.features)))
+            import os, math
+            size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
+            # entropie simple
+            entropy = 0.0
+            try:
+                with open(file_path, 'rb') as f:
+                    data = f.read(2048)
+                if data:
+                    from collections import Counter
+                    counts = Counter(data)
+                    n = len(data)
+                    for c in counts.values():
+                        p = c / n
+                        entropy -= p * math.log2(p)
+            except Exception:
+                entropy = 0.0
+            cpu = float(process_info.get('cpu_usage', 0.0) or process_info.get('cpu_percent', 0.0) or 0.0)
+            mem = float(process_info.get('memory_usage', 0.0) or process_info.get('memory_percent', 0.0) or 0.0)
+            features = np.array([entropy, size, cpu, mem], dtype=float)
+            return features
+        except Exception:
+            return np.zeros(4, dtype=float)
     
     def _calculate_entropy(self, file_path: str) -> float:
         """Calculer l'entropie d'un fichier (indicateur d'encryption)"""
