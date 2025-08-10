@@ -55,6 +55,9 @@ const Settings: React.FC = () => {
         'en': 'English',
         'ee': 'Eʋegbe'
       });
+      // Forcer FR par défaut si l'API n'est pas accessible
+      setCurrentLanguage('fr');
+      setSettings(prev => ({ ...prev, language: 'fr' }));
     }
   };
 
