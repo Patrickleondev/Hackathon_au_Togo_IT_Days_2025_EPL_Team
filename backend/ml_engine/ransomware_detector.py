@@ -59,6 +59,9 @@ class RansomwareDetector:
         # Initialisation des modèles
         self._load_or_create_models()
         
+        # Flag d'annulation de scan
+        self.cancel_scan = False
+        
     async def initialize(self):
         """Initialiser le détecteur de ransomware"""
         try:
@@ -558,6 +561,8 @@ class RansomwareDetector:
             self.is_scanning = True
             self.scan_progress = 0
             self.detected_threats = []
+            # réinitialiser le flag d'annulation au démarrage d'un nouveau scan
+            self.cancel_scan = False
             
             logger.info(f"Démarrage du scan de type: {scan_type}")
             
@@ -573,6 +578,10 @@ class RansomwareDetector:
             scanned_files = 0
             
             for file_path in paths_to_scan:
+                # Vérifier si l'annulation a été demandée
+                if self.cancel_scan:
+                    logger.info("🛑 Scan annulé par l'utilisateur")
+                    break
                 try:
                     # Obtenir les informations du processus
                     process_info = await self._get_process_info(file_path)
@@ -602,7 +611,7 @@ class RansomwareDetector:
                         logger.warning(f"Menace détectée: {file_path} (confiance: {prediction['confidence']:.2f})")
                     
                     scanned_files += 1
-                    self.scan_progress = (scanned_files / total_files) * 100
+                    self.scan_progress = (scanned_files / total_files) * 100 if total_files > 0 else 0
                     
                     # Pause pour éviter de surcharger le système
                     await asyncio.sleep(0.1)
@@ -677,6 +686,13 @@ class RansomwareDetector:
             'progress': self.scan_progress,
             'threats_detected': len(self.detected_threats)
         }
+    
+    async def stop_scan(self) -> bool:
+        """Demander l'arrêt du scan en cours"""
+        if self.is_scanning:
+            self.cancel_scan = True
+            return True
+        return False
     
     async def get_detected_threats(self) -> List[Dict[str, Any]]:
         """Obtenir la liste des menaces détectées"""
