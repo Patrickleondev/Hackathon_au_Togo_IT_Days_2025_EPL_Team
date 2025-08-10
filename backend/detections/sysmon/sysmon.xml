@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Sysmon schemaversion="4.50">
+  <HashAlgorithms>md5,sha256</HashAlgorithms>
+  <EventFiltering>
+    <RuleGroup name="Process Create" groupRelation="or">
+      <ProcessCreate onmatch="include" />
+    </RuleGroup>
+    <RuleGroup name="Network Connect" groupRelation="or">
+      <NetworkConnect onmatch="include">
+        <Image condition="end with">\\powershell.exe</Image>
+      </NetworkConnect>
+    </RuleGroup>
+    <RuleGroup name="File Create" groupRelation="or">
+      <FileCreate onmatch="include" />
+    </RuleGroup>
+    <RuleGroup name="Image Load" groupRelation="or">
+      <ImageLoad onmatch="include" />
+    </RuleGroup>
+  </EventFiltering>
+</Sysmon>

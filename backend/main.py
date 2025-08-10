@@ -1252,8 +1252,33 @@ async def update_settings(settings: dict):
         logger.error(f"❌ Erreur lors de la mise à jour des paramètres: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/detections/catalog")
+async def get_detections_catalog():
+    """Lister les artefacts de détection disponibles (Sigma/Suricata/YARA/Sysmon)."""
+    try:
+        base_dir = os.path.join(os.path.dirname(__file__), "detections")
+        catalog: Dict[str, Any] = {"sigma": [], "suricata": [], "yara": [], "sysmon": []}
+        mapping = {
+            "sigma": os.path.join(base_dir, "sigma"),
+            "suricata": os.path.join(base_dir, "suricata"),
+            "yara": os.path.join(base_dir, "yara"),
+            "sysmon": os.path.join(base_dir, "sysmon"),
+        }
+        for key, folder in mapping.items():
+            if os.path.isdir(folder):
+                for root, _, files in os.walk(folder):
+                    for fname in files:
+                        rel_path = os.path.relpath(os.path.join(root, fname), base_dir)
+                        catalog[key].append(rel_path)
+        return {"catalog": catalog, "timestamp": datetime.now().isoformat()}
+    except Exception as e:
+        logger.error(f"Erreur lors du listing des artefacts: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Configuration des fichiers statiques
-app.mount("/static", StaticFiles(directory="static"), name="static")
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+os.makedirs(STATIC_DIR, exist_ok=True)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 async def calculate_file_entropy(file_path: str) -> float:
     """Calculer l'entropie d'un fichier pour détecter le chiffrement"""
