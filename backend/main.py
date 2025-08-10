@@ -94,6 +94,20 @@ class FileAnalysisRequest(BaseModel):
     file_path: str
     process_info: dict = {}
 
+class EradicationScope(BaseModel):
+    hosts: List[str] | None = None
+    paths: List[str] = []
+
+class EradicationRequest(BaseModel):
+    alert_id: str | None = None
+    scope: EradicationScope
+    actions: List[str] = [
+        "kill_processes",
+        "quarantine_files"
+    ]
+    dry_run: bool = True
+    min_confidence: float = 0.85
+
 # Initialisation des composants
 detector = RansomwareDetector()
 hybrid_detector = HybridDetector()
@@ -758,6 +772,139 @@ async def restore_quarantined_file(filename: str):
         
     except Exception as e:
         logger.error(f"Erreur lors de la restauration: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/eradications")
+async def create_eradication(plan: EradicationRequest):
+    """Créer et exécuter (ou simuler) un plan d'éradication au niveau dossier/hôte."""
+    try:
+        if not plan.scope or not plan.scope.paths:
+            raise HTTPException(status_code=400, detail="Scope.paths requis")
+
+        # Limiter aux opérations locales dans cette version
+        unsupported_hosts = [h for h in (plan.scope.hosts or []) if h not in ("localhost", "127.0.0.1", "::1", "host", "host-local")] 
+        if unsupported_hosts:
+            raise HTTPException(status_code=400, detail=f"Hôtes non supportés pour cette action: {unsupported_hosts}")
+
+        summary = {
+            "alert_id": plan.alert_id,
+            "dry_run": plan.dry_run,
+            "min_confidence": plan.min_confidence,
+            "paths": plan.scope.paths,
+            "steps": [],
+            "stats": {"files_evaluated": 0, "files_to_quarantine": 0, "processes_to_kill": 0},
+            "timestamp": datetime.now().isoformat()
+        }
+
+        # Helper: lister processus utilisant un chemin
+        def processes_in_path(target_path: str) -> List[Dict[str, Any]]:
+            procs: List[Dict[str, Any]] = []
+            norm_path = os.path.abspath(target_path)
+            for proc in psutil.process_iter(["pid", "name", "open_files", "cwd"]):
+                try:
+                    info = proc.info
+                    used = False
+                    # open files
+                    for of in proc.open_files() or []:
+                        if of.path and os.path.abspath(of.path).startswith(norm_path):
+                            used = True
+                            break
+                    # cwd
+                    if not used:
+                        cwd = info.get("cwd")
+                        if cwd and os.path.abspath(cwd).startswith(norm_path):
+                            used = True
+                    if used:
+                        procs.append({"pid": info.get("pid"), "name": info.get("name")})
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+            return procs
+
+        # Parcourir les chemins ciblés
+        for path in plan.scope.paths:
+            if not os.path.exists(path):
+                summary["steps"].append({"path": path, "error": "Path not found"})
+                continue
+
+            files_considered: List[str] = []
+            suspicious: List[Dict[str, Any]] = []
+
+            # Recenser jusqu'à 2000 fichiers
+            try:
+                for root, dirs, files in os.walk(path):
+                    for fname in files:
+                        fp = os.path.join(root, fname)
+                        files_considered.append(fp)
+                        if len(files_considered) >= 2000:
+                            break
+                    if len(files_considered) >= 2000:
+                        break
+            except Exception:
+                pass
+
+            summary["stats"]["files_evaluated"] += len(files_considered)
+
+            # Analyser et sélectionner à mettre en quarantaine
+            for fp in files_considered:
+                try:
+                    analysis = await hybrid_detector.analyze_file_hybrid(fp, {})
+                    conf = float(analysis.get("confidence", 0.0) or 0.0)
+                    is_threat = analysis.get("is_threat", False) or (conf >= plan.min_confidence)
+                    if is_threat and conf >= plan.min_confidence:
+                        suspicious.append({
+                            "file_path": fp,
+                            "confidence": conf,
+                            "severity": analysis.get("severity", "medium"),
+                            "threat_type": analysis.get("threat_type", "unknown")
+                        })
+                except Exception:
+                    continue
+
+            # Processus liés au dossier
+            procs = processes_in_path(path)
+
+            summary["stats"]["files_to_quarantine"] += len(suspicious)
+            summary["stats"]["processes_to_kill"] += len(procs)
+
+            step = {
+                "path": path,
+                "suspicious_files": suspicious,
+                "processes": procs,
+                "actions": plan.actions,
+            }
+
+            if plan.dry_run:
+                step["preview"] = True
+                step["message"] = "Dry-run: aucune action destructive exécutée"
+                summary["steps"].append(step)
+                continue
+
+            # Exécution réelle
+            results = {"quarantine": [], "kill": []}
+            if "kill_processes" in plan.actions:
+                for p in procs:
+                    try:
+                        res = await threat_response.block_process({"pid": p["pid"], "name": p.get("name", "unknown")})
+                        results["kill"].append(res)
+                    except Exception as e:
+                        results["kill"].append({"success": False, "error": str(e), "pid": p["pid"]})
+
+            if "quarantine_files" in plan.actions:
+                for item in suspicious:
+                    try:
+                        res = await threat_response.quarantine_file(item["file_path"])
+                        results["quarantine"].append(res)
+                    except Exception as e:
+                        results["quarantine"].append({"success": False, "error": str(e), "file_path": item["file_path"]})
+
+            step["results"] = results
+            summary["steps"].append(step)
+
+        return summary
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erreur lors de l'éradication: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/threat-intelligence/status")

@@ -14,7 +14,12 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 import numpy as np
 import joblib
-from sklearn.ensemble import RandomForestClassifier
+try:
+    from sklearn.ensemble import RandomForestClassifier
+    SKLEARN_AVAILABLE = True
+except Exception:
+    RandomForestClassifier = None
+    SKLEARN_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +76,7 @@ class UltraDetector:
     def _load_ml_models(self):
         """Charger les modèles ML"""
         try:
-            if os.path.exists('models/ultra_classifier.pkl'):
+            if SKLEARN_AVAILABLE and os.path.exists('models/ultra_classifier.pkl'):
                 self.models['ultra'] = joblib.load('models/ultra_classifier.pkl')
             logger.info("✅ Modèles ML ultra chargés")
         except Exception as e:
