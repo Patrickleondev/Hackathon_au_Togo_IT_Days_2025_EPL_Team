@@ -58,39 +58,38 @@ const FileUpload: React.FC = () => {
     setError(null);
 
     try {
-      const formData = new FormData();
-      files.forEach(file => {
-        formData.append('files', file);
-      });
+      const analysesResults: FileAnalysis[] = [];
 
-      const response = await axios.post('/api/analyze/file', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        onUploadProgress: (progressEvent) => {
-          // Mise à jour du progrès
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
-          console.log('Progression:', percentCompleted);
-        }
-      });
+      for (let index = 0; index < files.length; index++) {
+        const file = files[index];
+        const formData = new FormData();
+        formData.append('file', file);
 
-      // Traiter les résultats
-      const newAnalyses: FileAnalysis[] = files.map((file, index) => ({
-        id: `analysis-${Date.now()}-${index}`,
-        filename: file.name,
-        size: file.size,
-        type: file.type,
-        status: 'completed',
-        threat_detected: response.data.results?.[index]?.is_threat || false,
-        confidence: response.data.results?.[index]?.confidence || 0,
-        threat_type: response.data.results?.[index]?.threat_type,
-        severity: response.data.results?.[index]?.severity,
-        description: response.data.results?.[index]?.description,
-        recommendations: response.data.results?.[index]?.recommendations || [],
-        timestamp: new Date().toISOString()
-      }));
+        const response = await axios.post('/api/analyze/file', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
 
-      setAnalyses(prev => [...newAnalyses, ...prev]);
+        const data = response.data || {};
+        const isThreat = data.is_threat ?? data.is_ransomware ?? false;
+        const confidence = typeof data.confidence === 'number' ? data.confidence : 0;
+
+        analysesResults.push({
+          id: `analysis-${Date.now()}-${index}`,
+          filename: file.name,
+          size: file.size,
+          type: file.type,
+          status: 'completed',
+          threat_detected: Boolean(isThreat),
+          confidence: confidence,
+          threat_type: data.threat_type,
+          severity: data.severity,
+          description: data.description,
+          recommendations: Array.isArray(data.recommendations) ? data.recommendations : [],
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      setAnalyses(prev => [...analysesResults, ...prev]);
       setFiles([]);
     } catch (err) {
       console.error('Erreur lors de l\'analyse:', err);
@@ -256,7 +255,7 @@ const FileUpload: React.FC = () => {
                             {analysis.severity || 'Unknown'}
                           </span>
                           <span className="text-sm text-gray-600">
-                            Confiance: {analysis.confidence.toFixed(1)}%
+                            Confiance: {(analysis.confidence * 100).toFixed(1)}%
                           </span>
                         </div>
                         <p className="text-sm text-gray-900 mb-2">{analysis.description}</p>
