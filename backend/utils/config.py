@@ -41,6 +41,42 @@ class Settings:
         self.MAX_FILE_HISTORY: int = 50
         self.MAX_NETWORK_HISTORY: int = 1000
         
+        # Ajouts: Surveillance fichiers configurable
+        import os as _os
+        home_dir = _os.path.expanduser("~")
+        default_watch_dirs = [
+            _os.path.join(home_dir, "Documents"),
+            _os.path.join(home_dir, "Desktop"),
+            _os.path.join(home_dir, "Downloads"),
+            _os.path.join(home_dir, "Pictures"),
+        ]
+        # WATCH_DIRECTORIES peut être défini via env (séparé par ",")
+        env_watch = _os.getenv("WATCH_DIRECTORIES")
+        if env_watch:
+            if env_watch.strip() == "/":
+                self.WATCH_DIRECTORIES = ["/"]
+            else:
+                self.WATCH_DIRECTORIES = [p.strip() for p in env_watch.split(",") if p.strip()]
+        else:
+            self.WATCH_DIRECTORIES = default_watch_dirs
+        
+        # Option pour surveiller tout le système de fichiers (avec exclusions)
+        self.ENABLE_FULL_FS_WATCH: bool = (_os.getenv("ENABLE_FULL_FS_WATCH", "false").lower() in ["1", "true", "yes"]) or (self.WATCH_DIRECTORIES == ["/"])
+        
+        # Chemins exclus lors d'une surveillance large (Linux)
+        default_excludes = [
+            "/proc", "/sys", "/dev", "/run", "/var/run",
+            "/var/lib/docker", "/var/lib/containers", "/snap", "/tmp"
+        ]
+        env_excludes = _os.getenv("EXCLUDE_PATHS")
+        if env_excludes:
+            self.EXCLUDE_PATHS = [p.strip() for p in env_excludes.split(",") if p.strip()]
+        else:
+            self.EXCLUDE_PATHS = default_excludes
+        
+        # Intervalle de surveillance réseau
+        self.NETWORK_MONITOR_INTERVAL: int = int(_os.getenv("NETWORK_MONITOR_INTERVAL", "2"))
+        
         # Configuration des alertes
         self.ALERT_RETENTION_DAYS: int = 30
         self.MAX_ALERTS_PER_HOUR: int = 100

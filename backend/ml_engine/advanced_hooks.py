@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional, Callable
 import psutil
 import platform
+from utils.config import settings
 
 # Imports spécifiques selon la plateforme
 if platform.system() == 'Windows':
@@ -173,12 +174,11 @@ class AdvancedSystemHooks:
         """Surveillance des fichiers sur Linux"""
         try:
             # Utiliser inotify pour Linux
-            watch_dirs = [
-                os.path.expanduser("~/Documents"),
-                os.path.expanduser("~/Desktop"),
-                os.path.expanduser("~/Downloads"),
-                os.path.expanduser("~/Pictures")
-            ]
+            watch_dirs = []
+            if settings.ENABLE_FULL_FS_WATCH:
+                watch_dirs = ["/"]
+            else:
+                watch_dirs = [d for d in settings.WATCH_DIRECTORIES if os.path.exists(d)]
             
             for directory in watch_dirs:
                 if os.path.exists(directory):
@@ -201,9 +201,15 @@ class AdvancedSystemHooks:
             for event in i.event_gen():
                 if not self.is_monitoring:
                     break
-                    
+                
                 if event is not None:
                     (header, type_names, watch_path, filename) = event
+                    
+                    # Filtrer les chemins exclus s'ils sont définis et si on surveille tout le FS
+                    if settings.ENABLE_FULL_FS_WATCH:
+                        full_path = os.path.join(watch_path, (filename or b'').decode('utf-8', errors='ignore'))
+                        if any(full_path.startswith(ex) for ex in settings.EXCLUDE_PATHS):
+                            continue
                     
                     if filename:
                         file_path = os.path.join(watch_path, filename.decode('utf-8'))
@@ -214,7 +220,7 @@ class AdvancedSystemHooks:
                             asyncio.run(self._handle_file_event('file_modified', file_path))
                         elif 'IN_DELETE' in type_names:
                             asyncio.run(self._handle_file_event('file_deleted', file_path))
-                            
+                        
         except Exception as e:
             logger.error(f"Erreur dans le watcher Linux: {e}")
     
@@ -374,7 +380,7 @@ class AdvancedSystemHooks:
             
             while self.is_monitoring:
                 try:
-                    time.sleep(2)  # Vérifier toutes les 2 secondes
+                    time.sleep(max(1, settings.NETWORK_MONITOR_INTERVAL))  # intervalle configurable
                     
                     current_connections = set()
                     for conn in psutil.net_connections(kind='inet'):
@@ -386,14 +392,12 @@ class AdvancedSystemHooks:
                     
                     for conn_key in new_connections:
                         try:
-                            # Gérer les cas où l'IP peut contenir des ':' (IPv6)
+                            # Gérer les cas IPv6
                             if conn_key.count(':') > 1:
-                                # IPv6 - prendre la dernière partie comme port
                                 parts = conn_key.split(':')
                                 ip = ':'.join(parts[:-1])
                                 port = parts[-1]
                             else:
-                                # IPv4 - format standard
                                 ip, port = conn_key.split(':')
                             
                             connection_info = {
@@ -401,8 +405,7 @@ class AdvancedSystemHooks:
                                 'remote_port': int(port),
                                 'timestamp': datetime.now().isoformat()
                             }
-                        except (ValueError, IndexError) as e:
-                            logger.debug(f"Connexion ignorée (format invalide): {conn_key}")
+                        except (ValueError, IndexError):
                             continue
                         
                         asyncio.run(self._handle_network_event('network_connection', connection_info))
