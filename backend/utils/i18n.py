@@ -12,7 +12,7 @@ class I18nManager:
     """Gestionnaire d'internationalisation"""
     
     def __init__(self):
-        self.current_language = "fr"  # Langue par défaut
+        self.current_language = "en"  # Langue par défaut passée à l'anglais
         self.translations = {}
         self.load_translations()
     
