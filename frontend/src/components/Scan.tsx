@@ -168,7 +168,7 @@ const Scan: React.FC = () => {
     <div className="space-y-6">
       {/* En-tête */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Scanner le système</h1>
+        <h1 className="text-3xl font-bold text-gray-900">{require('react-i18next').useTranslation().t('titles.scan')}</h1>
         <p className="text-gray-600">Protection proactive contre les menaces</p>
       </div>
 

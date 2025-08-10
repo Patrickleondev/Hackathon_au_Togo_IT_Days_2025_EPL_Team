@@ -49,6 +49,7 @@ const Dashboard: React.FC = () => {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [advancedHooks, setAdvancedHooks] = useState<{is_monitoring: boolean; file_watchers_count: number; process_watchers_count: number; registry_watchers_count: number; callbacks_count: number;} | null>(null);
   const [threatIntel, setThreatIntel] = useState<{status: string; statistics: any; last_update: string} | null>(null);
+  const [networkInfo, setNetworkInfo] = useState<{active_connections: {local_address: string; remote_address: string; status: string; process: string;}[]; open_ports?: number[];} | null>(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -86,6 +87,12 @@ const Dashboard: React.FC = () => {
       try {
         const tiResp = await axios.get('/api/threat-intelligence/status');
         setThreatIntel(tiResp.data);
+      } catch {}
+
+      // Récupérer réseau
+      try {
+        const netResp = await axios.get('/api/monitoring/network');
+        setNetworkInfo(netResp.data);
       } catch {}
       
       setError(null);
@@ -151,7 +158,7 @@ const Dashboard: React.FC = () => {
       {/* En-tête avec contrôles */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Tableau de bord</h1>
+          <h1 className="text-3xl font-bold text-gray-900">{require('react-i18next').useTranslation().t('titles.dashboard')}</h1>
           <p className="text-gray-600">Protection intelligente en temps réel</p>
         </div>
         <div className="flex items-center space-x-4">
@@ -333,6 +340,36 @@ const Dashboard: React.FC = () => {
             </div>
           ) : (
             <p className="text-sm text-gray-500">Données non disponibles</p>
+          )}
+        </div>
+
+        {/* Réseau (mini-widget) */}
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Réseau</h3>
+          </div>
+          {networkInfo ? (
+            <div className="text-sm space-y-3">
+              <div>
+                <p className="text-gray-700 font-medium mb-1">Connexions actives</p>
+                <div className="space-y-1">
+                  {(networkInfo.active_connections || []).slice(0,5).map((c, idx) => (
+                    <div key={idx} className="flex justify-between">
+                      <span className="truncate max-w-[60%]" title={`${c.local_address} → ${c.remote_address}`}>{c.local_address} → {c.remote_address}</span>
+                      <span className="text-gray-500">{c.process || 'unknown'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {Array.isArray(networkInfo.open_ports) && (
+                <div>
+                  <p className="text-gray-700 font-medium mb-1">Ports ouverts (localhost)</p>
+                  <p className="text-gray-600">{networkInfo.open_ports.slice(0,10).join(', ') || 'Aucun détecté'}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">Données réseau indisponibles</p>
           )}
         </div>
       </div>

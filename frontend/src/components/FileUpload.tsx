@@ -133,7 +133,7 @@ const FileUpload: React.FC = () => {
     <div className="space-y-6">
       {/* En-tête */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Analyse de fichiers</h1>
+        <h1 className="text-3xl font-bold text-gray-900">{require('react-i18next').useTranslation().t('titles.upload')}</h1>
         <p className="text-gray-600">Analysez vos fichiers avec notre IA de détection avancée</p>
       </div>
 

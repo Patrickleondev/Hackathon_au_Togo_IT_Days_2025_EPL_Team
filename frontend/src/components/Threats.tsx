@@ -129,7 +129,7 @@ const Threats: React.FC = () => {
       {/* En-tête */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Menaces détectées</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{require('react-i18next').useTranslation().t('titles.threats')}</h1>
           <p className="text-gray-600">
             {threats.length} menace{threats.length !== 1 ? 's' : ''} détectée{threats.length !== 1 ? 's' : ''}
           </p>

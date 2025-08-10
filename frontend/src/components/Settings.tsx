@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Shield, Bell, Monitor, Database, Download } from 'lucide-react';
+import i18n from '../i18n';
 
 const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState('general');
@@ -46,6 +47,7 @@ const Settings: React.FC = () => {
         setAvailableLanguages(data.languages);
         setCurrentLanguage(data.current);
         setSettings(prev => ({ ...prev, language: data.current }));
+        try { i18n.changeLanguage(data.current); } catch {}
       }
     } catch (error) {
       console.error('Erreur lors du chargement des langues:', error);
@@ -76,6 +78,7 @@ const Settings: React.FC = () => {
       if (result.success) {
         setCurrentLanguage(newLanguage);
         setSettings(prev => ({ ...prev, language: newLanguage }));
+        try { i18n.changeLanguage(newLanguage); } catch {}
         
         // Optionnel: recharger la page pour appliquer les traductions
         // window.location.reload();
@@ -446,7 +449,7 @@ const Settings: React.FC = () => {
     <div className="space-y-6">
       {/* En-tête */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Paramètres</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{require('react-i18next').useTranslation().t('titles.settings')}</h1>
         <p className="text-gray-600">Configurez votre protection personnalisée</p>
       </div>
 

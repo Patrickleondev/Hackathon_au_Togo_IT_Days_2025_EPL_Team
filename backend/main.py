@@ -419,6 +419,7 @@ async def get_network_monitoring():
     """Retourner un état simple du monitoring réseau pour l'UI"""
     try:
         import psutil
+        import socket
         connections = []
         for c in psutil.net_connections(kind='inet')[:200]:
             try:
@@ -439,9 +440,29 @@ async def get_network_monitoring():
                 })
             except Exception:
                 continue
+
+        # Scanner quelques ports locaux courants
+        open_ports = []
+        try:
+            common_ports = [21, 22, 23, 25, 53, 80, 110, 143, 443, 993, 995, 3306, 5432, 6379, 27017]
+            for port in common_ports:
+                try:
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock.settimeout(0.3)
+                    result = sock.connect_ex(('127.0.0.1', port))
+                    if result == 0:
+                        open_ports.append(port)
+                finally:
+                    try:
+                        sock.close()
+                    except Exception:
+                        pass
+        except Exception:
+            open_ports = []
         return {
             "active_connections": connections,
-            "suspicious_activities": []
+            "suspicious_activities": [],
+            "open_ports": open_ports
         }
     except Exception as e:
         logger.error(f"Erreur monitoring réseau: {e}")

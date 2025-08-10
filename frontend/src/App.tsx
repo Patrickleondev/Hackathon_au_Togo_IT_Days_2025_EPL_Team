@@ -9,6 +9,8 @@ import SettingsPage from './components/Settings';
 import FileUpload from './components/FileUpload';
 import NotificationSystem from './components/NotificationSystem';
 import './App.css';
+import './i18n';
+import { useTranslation } from 'react-i18next';
 
 interface Notification {
   id: string;
@@ -20,6 +22,7 @@ interface Notification {
 }
 
 function App() {
+  const { t } = useTranslation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([
     {
@@ -150,12 +153,12 @@ function App() {
           <div className="flex flex-col lg:flex-row space-y-8 lg:space-y-0 lg:space-x-8">
             {/* Sidebar responsive */}
             <nav className={`lg:w-64 space-y-2 ${mobileMenuOpen ? 'block' : 'hidden lg:block'}`}>
-              <NavLink to="/" icon={<Activity />} label="Tableau de bord" />
-              <NavLink to="/upload" icon={<Upload />} label="Analyse de fichier" />
-              <NavLink to="/threats" icon={<AlertTriangle />} label="Menaces détectées" />
-              <NavLink to="/scan" icon={<Shield />} label="Scanner le système" />
-              <NavLink to="/statistics" icon={<BarChart3 />} label="Statistiques" />
-              <NavLink to="/settings" icon={<Settings />} label="Paramètres" />
+              <NavLink to="/" icon={<Activity />} label={t('nav.dashboard')} />
+              <NavLink to="/upload" icon={<Upload />} label={t('nav.upload')} />
+              <NavLink to="/threats" icon={<AlertTriangle />} label={t('nav.threats')} />
+              <NavLink to="/scan" icon={<Shield />} label={t('nav.scan')} />
+              <NavLink to="/statistics" icon={<BarChart3 />} label={t('nav.statistics')} />
+              <NavLink to="/settings" icon={<Settings />} label={t('nav.settings')} />
             </nav>
 
             {/* Main content */}
