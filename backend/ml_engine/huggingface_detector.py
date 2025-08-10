@@ -14,56 +14,103 @@ import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.ensemble import RandomForestClassifier
 import joblib
+from utils.config import settings
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import torch
 
 logger = logging.getLogger(__name__)
 
 class HuggingFaceDetector:
     """
-    Détecteur de ransomware utilisant des techniques NLP simplifiées
+    Détecteur de ransomware utilisant des modèles Hugging Face locaux (fallback simplifié si indisponible)
     """
     
     def __init__(self):
         self.models = {}
         self.vectorizer = None
-        self.device = 'cpu'  # Version simplifiée
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         
         # Configuration des modèles
-        self.model_configs = {
-            'text_classifier': {
-                'type': 'random_forest',
-                'threshold': 0.7
-            },
-            'pattern_detector': {
-                'type': 'rule_based',
-                'threshold': 0.6
-            }
+        self.model_dirs = {
+            'distilbert': os.path.join(settings.MODEL_PATH, 'distilbert_hackathon'),
+            'roberta': os.path.join(settings.MODEL_PATH, 'roberta_hackathon'),
+            'codebert': os.path.join(settings.MODEL_PATH, 'codebert_hackathon')
+        }
+        self.thresholds = {
+            'distilbert': 0.5,
+            'roberta': 0.5,
+            'codebert': 0.5
         }
         
         self._load_models()
         
     def _load_models(self):
-        """Charger les modèles simplifiés"""
+        """Charger les modèles entraînés HF si disponibles, sinon fallback TF-IDF+RF"""
         try:
-            logger.info("🔄 Chargement des modèles NLP simplifiés...")
+            logger.info("🔄 Chargement des modèles Hugging Face...")
+            loaded_any = False
+            for name, path in self.model_dirs.items():
+                if os.path.isdir(path):
+                    try:
+                        tokenizer = AutoTokenizer.from_pretrained(path)
+                        model = AutoModelForSequenceClassification.from_pretrained(path)
+                        model.to(self.device)
+                        model.eval()
+                        self.models[name] = {
+                            'tokenizer': tokenizer,
+                            'model': model
+                        }
+                        loaded_any = True
+                        logger.info(f"✅ Modèle HF chargé: {name} ({path})")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Impossible de charger {name} à {path}: {e}")
             
-            # Créer un vectorizer TF-IDF
-            self.vectorizer = TfidfVectorizer(
-                max_features=1000,
-                stop_words='english',
-                ngram_range=(1, 2)
-            )
-            
-            # Créer un classifieur Random Forest
-            self.models['text_classifier'] = RandomForestClassifier(
-                n_estimators=100,
-                random_state=42
-            )
-            
-            logger.info("✅ Modèles NLP simplifiés chargés avec succès")
-            
+            if not loaded_any:
+                # Fallback simplifié
+                logger.warning("⚠️ Aucun modèle HF trouvé, fallback TF-IDF + RandomForest")
+                self.vectorizer = TfidfVectorizer(max_features=1000, stop_words='english', ngram_range=(1, 2))
+                self.models['text_classifier'] = RandomForestClassifier(n_estimators=100, random_state=42)
+                
+            logger.info("✅ Chargement des modèles terminé")
         except Exception as e:
             logger.error(f"❌ Erreur lors du chargement des modèles: {e}")
-    
+            # Fallback forcé
+            self.vectorizer = TfidfVectorizer(max_features=1000, stop_words='english', ngram_range=(1, 2))
+            self.models['text_classifier'] = RandomForestClassifier(n_estimators=100, random_state=42)
+
+    def _prepare_text_for_models(self, file_path: str, process_info: Dict) -> str:
+        """Construire un texte de contexte à partir du fichier et du process"""
+        try:
+            size = os.path.getsize(file_path)
+            ext = os.path.splitext(file_path)[1]
+            # Lire une fenêtre du fichier
+            with open(file_path, 'rb') as f:
+                head = f.read(4096)
+            head_text = head.decode('utf-8', errors='ignore')
+            proc_name = process_info.get('process_name') if isinstance(process_info, dict) else None
+            return f"size:{size} ext:{ext} proc:{proc_name or ''} head:{head_text[:500]}"
+        except Exception:
+            return f"size:0 ext:unknown proc: head:"
+
+    def _hf_predict_proba(self, name: str, text: str) -> float:
+        """Retourne la proba de classe 1 (malveillant) pour un modèle HF"""
+        try:
+            bundle = self.models.get(name)
+            if not bundle:
+                return 0.0
+            tokenizer = bundle['tokenizer']
+            model = bundle['model']
+            encoded = tokenizer(text, padding='max_length', truncation=True, max_length=256, return_tensors='pt').to(self.device)
+            with torch.no_grad():
+                outputs = model(**encoded)
+                logits = outputs.logits
+                probs = torch.softmax(logits, dim=-1).squeeze().tolist()
+                # suppose l'index 1 = classe malveillante
+                return float(probs[1]) if isinstance(probs, list) and len(probs) >= 2 else 0.0
+        except Exception as e:
+            logger.debug(f"HF predict error ({name}): {e}")
+            return 0.0
+
     def _extract_text_features(self, file_path: str) -> str:
         """Extraire les caractéristiques textuelles d'un fichier"""
         try:
@@ -143,84 +190,62 @@ class HuggingFaceDetector:
         except Exception as e:
             logger.error(f"Erreur lors de la détection des patterns: {e}")
             return []
-    
+
     async def analyze_with_huggingface(self, file_path: str, process_info: Dict) -> Dict[str, Any]:
-        """Analyser un fichier avec les techniques NLP simplifiées"""
+        """Analyser un fichier via modèles HF locaux ou fallback"""
         try:
-            logger.info(f"🔍 Analyse NLP du fichier: {file_path}")
-            
-            # Extraire les caractéristiques textuelles
-            text_features = self._extract_text_features(file_path)
-            
-            # Détecter les patterns suspects
+            logger.info(f"🔍 Analyse HF du fichier: {file_path}")
+            text = self._prepare_text_for_models(file_path, process_info)
             suspicious_patterns = self._detect_suspicious_patterns(file_path)
+            scores = {}
+
+            # Si modèles HF chargés
+            if any(k in self.models for k in ['distilbert','roberta','codebert']):
+                for name in ['distilbert','roberta','codebert']:
+                    if name in self.models:
+                        scores[name] = self._hf_predict_proba(name, text)
+            else:
+                # Fallback simple sur patterns
+                base_score = 0.0
+                for kw in ['encrypt','decrypt','ransom','bitcoin','wallet']:
+                    if kw in text.lower():
+                        base_score += 0.2
+                scores['fallback'] = min(base_score, 1.0)
             
-            # Calculer un score de menace basé sur les patterns
-            threat_score = 0.0
-            threat_indicators = []
+            # Score ensemble (moyenne)
+            if scores:
+                ensemble_score = float(sum(scores.values())/len(scores))
+            else:
+                ensemble_score = 0.0
             
-            # Score basé sur les patterns de ransomware
-            ransomware_keywords = ['encrypt', 'decrypt', 'ransom', 'bitcoin', 'wallet']
-            for keyword in ransomware_keywords:
-                if keyword in text_features.lower():
-                    threat_score += 0.2
-                    threat_indicators.append(f"Mot-clé suspect: {keyword}")
-            
-            # Score basé sur les patterns binaires
+            # Ajustement par patterns binaires
             if suspicious_patterns:
-                threat_score += 0.3
-                threat_indicators.append(f"Patterns binaires suspects: {len(suspicious_patterns)}")
+                ensemble_score = min(1.0, ensemble_score + 0.2)
             
-            # Score basé sur l'extension
-            file_ext = os.path.splitext(file_path)[1].lower()
-            suspicious_extensions = ['.exe', '.dll', '.bat', '.cmd', '.ps1', '.vbs']
-            if file_ext in suspicious_extensions:
-                threat_score += 0.1
-                threat_indicators.append(f"Extension suspecte: {file_ext}")
+            severity = 'low'
+            if ensemble_score >= 0.8:
+                severity = 'high'
+            elif ensemble_score >= 0.5:
+                severity = 'medium'
             
-            # Normaliser le score
-            threat_score = min(threat_score, 1.0)
-            
-            # Déterminer le type de menace
-            threat_type = "unknown"
-            if threat_score > 0.7:
-                threat_type = "ransomware"
-            elif threat_score > 0.4:
-                threat_type = "malware"
-            elif threat_score > 0.2:
-                threat_type = "suspicious"
-            
-            # Déterminer la sévérité
-            severity = "low"
-            if threat_score > 0.8:
-                severity = "high"
-            elif threat_score > 0.5:
-                severity = "medium"
-            
-            result = {
-                'is_threat': threat_score > 0.5,
-                'confidence': threat_score,
-                'threat_type': threat_type,
+            return {
+                'is_threat': ensemble_score >= 0.5,
+                'confidence': ensemble_score,
+                'threat_type': 'nlp_malware' if ensemble_score >= 0.5 else 'unknown',
                 'severity': severity,
-                'description': f"Analyse NLP détecte {len(threat_indicators)} indicateurs suspects",
-                'indicators': threat_indicators,
+                'model_predictions': scores,
                 'patterns_detected': suspicious_patterns,
-                'analysis_method': 'nlp_simplified',
+                'analysis_method': 'huggingface_local',
                 'timestamp': datetime.now().isoformat()
             }
-            
-            logger.info(f"✅ Analyse NLP terminée - Score: {threat_score:.2f}, Type: {threat_type}")
-            return result
-            
         except Exception as e:
-            logger.error(f"❌ Erreur lors de l'analyse NLP: {e}")
+            logger.error(f"❌ Erreur lors de l'analyse HF: {e}")
             return {
                 'is_threat': False,
                 'confidence': 0.0,
                 'threat_type': 'unknown',
                 'severity': 'low',
-                'description': 'Erreur lors de l\'analyse NLP',
-                'analysis_method': 'nlp_simplified',
+                'analysis_method': 'huggingface_error',
                 'timestamp': datetime.now().isoformat()
             }
     

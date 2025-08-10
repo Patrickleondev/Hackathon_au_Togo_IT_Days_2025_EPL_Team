@@ -1400,16 +1400,30 @@ async def handle_suspicious_file(event_data: Dict[str, Any]):
     try:
         file_path = event_data.get('file_path')
         if file_path:
-            # Analyser le fichier
-            analysis_result = await hybrid_detector.analyze_file_hybrid(file_path, {})
+            # Analyser le fichier (hybride + ultra)
+            hybrid_result = await hybrid_detector.analyze_file_hybrid(file_path, {})
+            ultra_result = await ultra_detector.analyze_file_ultra(file_path, {})
             
-            if analysis_result.get('is_threat', False):
+            # Calculer une décision combinée simple
+            h_conf = float(hybrid_result.get('confidence', 0.0) or 0.0)
+            u_conf = float(ultra_result.get('final_score', ultra_result.get('confidence', 0.0)) or 0.0)
+            combined = max(h_conf, u_conf)
+            is_threat = (hybrid_result.get('is_threat', False) or (u_conf >= 0.6))
+            severity = 'low'
+            if combined >= 0.9:
+                severity = 'critical'
+            elif combined >= 0.75:
+                severity = 'high'
+            elif combined >= 0.5:
+                severity = 'medium'
+            
+            if is_threat:
                 # Créer une menace
                 threat_info = {
                     'threat_type': 'suspicious_file',
-                    'severity': analysis_result.get('severity', 'medium'),
+                    'severity': severity,
                     'file_path': file_path,
-                    'confidence': analysis_result.get('confidence', 0.0),
+                    'confidence': combined,
                     'timestamp': datetime.now().isoformat()
                 }
                 
