@@ -47,7 +47,22 @@ export const useWebSocket = (
     try {
       // Générer un ID client unique
       const clientId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const wsUrl = `${url}/${clientId}`;
+      // Construire dynamiquement l'URL WebSocket
+      let baseUrl = url;
+      const envWs = (typeof process !== 'undefined' && (process as any).env && (process as any).env.REACT_APP_WS_URL) ? (process as any).env.REACT_APP_WS_URL : '';
+      if (!baseUrl || baseUrl === '') {
+        baseUrl = envWs || '/ws';
+      }
+      let wsUrl = '';
+      if (baseUrl.startsWith('ws://') || baseUrl.startsWith('wss://')) {
+        wsUrl = `${baseUrl.replace(/\/$/, '')}/${clientId}`;
+      } else {
+        const isHttps = typeof window !== 'undefined' && window.location && window.location.protocol === 'https:';
+        const protocol = isHttps ? 'wss' : 'ws';
+        const host = typeof window !== 'undefined' && window.location ? window.location.host : 'localhost:8000';
+        const path = baseUrl.startsWith('/') ? baseUrl : `/${baseUrl}`;
+        wsUrl = `${protocol}://${host}${path.replace(/\/$/, '')}/${clientId}`;
+      }
       
       console.log(`🔌 Connexion WebSocket à ${wsUrl}`);
       

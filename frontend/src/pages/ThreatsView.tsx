@@ -121,15 +121,7 @@ const ThreatsView: React.FC = () => {
       {/* Composant de résultats */}
       <ScanResults />
 
-      <style jsx>{`
-        .spin {
-          animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
+      {/* Styles inline supprimés pour compatibilité CRA */}
     </Container>
   );
 };
