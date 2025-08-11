@@ -184,7 +184,7 @@ async def get_files_monitoring():
         return JSONResponse(content={
             "status": "success",
             "data": {
-                "monitoring_active": True,
+                "monitoring_active": file_monitor.monitoring_active,
                 "directories_monitored": directories_monitored,
                 "total_files_scanned": total_files_scanned,
                 "suspicious_files": suspicious_files,
@@ -207,11 +207,48 @@ async def get_files_monitoring():
             }
         )
 
+
+@api_router.post("/monitoring/files/start")
+async def start_files_monitoring():
+    """Démarrer la surveillance des fichiers"""
+    try:
+        if not file_monitor.monitoring_active:
+            asyncio.create_task(file_monitor.start_monitoring())
+        return JSONResponse(content={
+            "status": "success",
+            "message": "Surveillance des fichiers démarrée",
+            "timestamp": datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Erreur démarrage surveillance fichiers: {e}")
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@api_router.post("/monitoring/files/stop")
+async def stop_files_monitoring():
+    """Arrêter la surveillance des fichiers"""
+    try:
+        file_monitor.stop_monitoring()
+        return JSONResponse(content={
+            "status": "success",
+            "message": "Surveillance des fichiers arrêtée",
+            "timestamp": datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Erreur arrêt surveillance fichiers: {e}")
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
 @api_router.post("/monitoring/files/add-directory")
 async def add_directory_to_monitor(directory_path: str):
     """Ajouter un répertoire à surveiller"""
     try:
-        file_monitor.add_directory(directory_path)
+        ok = file_monitor.add_directory(directory_path)
+        if not ok:
+            return JSONResponse(status_code=400, content={
+                "status": "error",
+                "message": f"Impossible d'ajouter {directory_path}. Vérifiez que le chemin existe et est lisible."
+            })
         return JSONResponse(content={
             "status": "success",
             "message": f"Répertoire {directory_path} ajouté à la surveillance",
@@ -228,11 +265,17 @@ async def add_directory_to_monitor(directory_path: str):
             }
         )
 
+
 @api_router.post("/monitoring/files/remove-directory")
 async def remove_directory_from_monitor(directory_path: str):
     """Retirer un répertoire de la surveillance"""
     try:
-        file_monitor.remove_directory(directory_path)
+        ok = file_monitor.remove_directory(directory_path)
+        if not ok:
+            return JSONResponse(status_code=404, content={
+                "status": "error",
+                "message": f"Répertoire {directory_path} non surveillé ou introuvable"
+            })
         return JSONResponse(content={
             "status": "success",
             "message": f"Répertoire {directory_path} retiré de la surveillance",
