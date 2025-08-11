@@ -1,0 +1,13 @@
+# Fichier update.patch
+# Copiez-collez ici le code fourni par l'agent background
+# 
+# Exemple de format de patch Git :
+# diff --git a/fichier.py b/fichier.py
+# index 1234567..abcdefg 100644
+# --- a/fichier.py
+# +++ b/fichier.py
+# @@ -10,7 +10,7 @@
+#  # Code existant...
+# - ligne_supprimee
+# + ligne_ajoutee
+#  # Suite du code...

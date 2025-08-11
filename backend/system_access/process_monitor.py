@@ -372,9 +372,15 @@ class ProcessMonitor:
                 # Connexion vers des ports suspects
                 raddr = conn['raddr']
                 if ':' in raddr:
-                    port = int(raddr.split(':')[1])
-                    if port in [1337, 4444, 8080, 8888, 9999, 31337]:
-                        score += 30
+                    try:
+                        port_part = raddr.split(':')[1]
+                        if port_part and port_part.strip():  # Vérifier que le port n'est pas vide
+                            port = int(port_part)
+                            if port in [1337, 4444, 8080, 8888, 9999, 31337]:
+                                score += 30
+                    except (ValueError, IndexError):
+                        # Ignorer les ports invalides
+                        pass
         
         # Comportements détectés
         behaviors = proc_info.get('behaviors', [])
