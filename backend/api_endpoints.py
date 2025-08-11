@@ -360,6 +360,8 @@ async def get_suggested_directories():
         win_variants = [
             os.path.join(home, "Bureau"),
             os.path.join(home, "Téléchargements"),
+            os.path.join(home, "Téléchargement"),
+            os.path.join(home, "Download"),
             os.path.join(home, "Images"),
         ]
         candidates.extend(win_variants)
@@ -392,6 +394,8 @@ async def add_default_directories():
             # Variantes locales Windows
             os.path.join(home, "Bureau"),
             os.path.join(home, "Téléchargements"),
+            os.path.join(home, "Téléchargement"),
+            os.path.join(home, "Download"),
             os.path.join(home, "Images"),
         ]
         added: list[str] = []

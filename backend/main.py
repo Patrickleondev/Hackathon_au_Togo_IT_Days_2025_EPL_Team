@@ -232,14 +232,15 @@ async def startup_event():
             logger.info("🔐 Privilèges admin détectés - Activation monitoring complet")
             
             # Surveiller les chemins critiques
-            await file_monitor.start_monitoring()
-            await process_monitor.start_monitoring()
-            await network_monitor.start_monitoring()
+            import asyncio as _asyncio
+            _asyncio.create_task(file_monitor.start_monitoring())
+            _asyncio.create_task(process_monitor.start_monitoring())
+            _asyncio.create_task(network_monitor.start_monitoring())
             
             # Démarrer la surveillance du registre si disponible
             if registry_monitor:
                 try:
-                    await registry_monitor.start_monitoring()
+                    _asyncio.create_task(registry_monitor.start_monitoring())
                     logger.info("🔍 Surveillance du registre activée")
                 except Exception as e:
                     logger.warning(f"⚠️ Erreur lors du démarrage de la surveillance du registre: {e}")
