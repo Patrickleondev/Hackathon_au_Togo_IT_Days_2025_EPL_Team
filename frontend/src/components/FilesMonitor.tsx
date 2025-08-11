@@ -54,6 +54,28 @@ const FilesMonitor: React.FC = () => {
     }
   };
 
+  const scanDirectory = async () => {
+    if (!newDir.trim()) return;
+    try {
+      setAdding(true);
+      await axios.post('/api/monitoring/files/scan-directory', null, { params: { directory_path: newDir.trim() } });
+      await load();
+    } catch (e: any) {
+      setError(e?.response?.data?.message || e?.message || 'Erreur scan répertoire');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const quarantine = async (filePath: string) => {
+    try {
+      await axios.post('/api/monitoring/files/quarantine-file', null, { params: { file_path: filePath } });
+      await load();
+    } catch (e: any) {
+      setError(e?.response?.data?.message || e?.message || 'Erreur quarantaine');
+    }
+  };
+
   useEffect(() => {
     load();
     const id = setInterval(load, 5000);
@@ -124,12 +146,26 @@ const FilesMonitor: React.FC = () => {
           </div>
 
           <div className="border rounded bg-white">
-            <div className="border-b p-3 font-semibold">Événements récents</div>
+            <div className="border-b p-3 font-semibold flex items-center justify-between">
+              <span>Événements récents</span>
+              <div className="flex items-center gap-2">
+                <button onClick={scanDirectory} className="inline-flex items-center gap-2 px-3 py-1.5 text-sm border rounded hover:bg-gray-50" disabled={adding}>
+                  Scanner le dossier
+                </button>
+              </div>
+            </div>
             <div className="divide-y">
               {(data.recent_operations || []).slice(0, 20).map((op: any, i: number) => (
-                <div key={i} className="p-3 text-sm">
-                  <span className="font-medium">{op.operation_type}</span> - {op.file_path}
-                  <span className="text-gray-500"> • {new Date(op.timestamp).toLocaleTimeString()}</span>
+                <div key={i} className="p-3 text-sm flex items-center justify-between">
+                  <div>
+                    <span className="font-medium">{op.operation_type}</span> - {op.file_path}
+                    <span className="text-gray-500"> • {new Date(op.timestamp).toLocaleTimeString()}</span>
+                  </div>
+                  {op.is_suspicious && (
+                    <button onClick={() => quarantine(op.file_path)} className="px-2 py-1 text-xs bg-red-600 text-white rounded">
+                      Mettre en quarantaine
+                    </button>
+                  )}
                 </div>
               ))}
               {(!data.recent_operations || data.recent_operations.length === 0) && (

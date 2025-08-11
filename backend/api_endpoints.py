@@ -10,13 +10,15 @@ from datetime import datetime
 import logging
 import asyncio
 from typing import Dict, Any, List
+import os
 
 # Import des composants de monitoring réels
 from adaptive_process_monitor import AdaptiveProcessMonitor
-from real_file_monitor import RealFileMonitor
+from real_file_monitor import file_monitor
 from real_registry_monitor import RealRegistryMonitor
 from unified_system_monitor import UnifiedSystemMonitor
 from scan_report_generator import ScanReportGenerator
+from threat_response import ThreatResponse
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +27,11 @@ api_router = APIRouter(prefix="/api", tags=["monitoring"])
 
 # Instances des moniteurs
 process_monitor = AdaptiveProcessMonitor()
-file_monitor = RealFileMonitor()
+# file_monitor importé comme singleton depuis real_file_monitor
 registry_monitor = RealRegistryMonitor()
 unified_monitor = UnifiedSystemMonitor()
 report_generator = ScanReportGenerator()
+threat_response = ThreatResponse()
 
 # ============================================================================
 # ENDPOINTS DE MONITORING DES PROCESSUS
@@ -245,6 +248,76 @@ async def remove_directory_from_monitor(directory_path: str):
                 "message": f"Erreur retrait: {str(e)}"
             }
         )
+
+@api_router.post("/monitoring/files/scan-directory")
+async def scan_directory(directory_path: str):
+    """Scanner récursivement un dossier et ajouter menaces basées sur patterns/extension."""
+    try:
+        if not directory_path:
+            return JSONResponse(status_code=400, content={"status": "error", "message": "directory_path requis"})
+        if not os.path.isdir(directory_path):
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Chemin invalide"})
+        # Ajouter à la surveillance si pas déjà
+        if not any(directory_path == d for d in file_monitor.monitored_dirs.keys()):
+            file_monitor.add_directory(directory_path)
+        # Scan rapide: parcourir et enregistrer opérations "access" pour déclencher analyse
+        scanned = 0
+        suspicious = 0
+        for root, _, files in os.walk(directory_path):
+            for f in files:
+                path = os.path.join(root, f)
+                scanned += 1
+                try:
+                    await file_monitor.handle_file_operation('access', path)
+                    if file_monitor.file_operations and file_monitor.file_operations[-1].is_suspicious:
+                        suspicious += 1
+                except Exception:
+                    continue
+                if scanned >= 5000:
+                    break
+            if scanned >= 5000:
+                break
+        return JSONResponse(content={
+            "status": "success",
+            "data": {
+                "scanned_files": scanned,
+                "suspicious_files": suspicious,
+            }
+        })
+    except Exception as e:
+        logger.error(f"Erreur scan dossier: {e}")
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+@api_router.post("/monitoring/files/quarantine-file")
+async def quarantine_file(file_path: str):
+    """Mettre un fichier en quarantaine immédiatement."""
+    try:
+        if not os.path.isfile(file_path):
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Fichier introuvable"})
+        res = await threat_response.quarantine_file(file_path)
+        return JSONResponse(content={"status": "success", "data": res})
+    except Exception as e:
+        logger.error(f"Erreur quarantaine fichier: {e}")
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+@api_router.get("/monitoring/files/threats")
+async def list_file_threats():
+    """Lister les menaces détectées par le moniteur de fichiers (opérations suspectes)."""
+    try:
+        threats = []
+        for op in file_monitor.suspicious_operations[-200:]:
+            threats.append({
+                "file_path": op.file_path,
+                "threat_score": op.threat_score,
+                "timestamp": op.timestamp.isoformat(),
+                "process": {"name": op.process_name, "pid": op.process_pid},
+                "operation": op.operation_type,
+                "hash": op.file_hash,
+            })
+        return JSONResponse(content={"status": "success", "data": threats})
+    except Exception as e:
+        logger.error(f"Erreur liste menaces fichiers: {e}")
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 # ============================================================================
 # ENDPOINTS DE MONITORING DU REGISTRE
