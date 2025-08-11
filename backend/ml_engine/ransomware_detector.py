@@ -562,8 +562,31 @@ class RansomwareDetector:
                 'severity': 'low',
                 'pattern_analysis': {},
                 'detected_strings': [],
-                'recommendations': ['Erreur lors de l\'analyse'],
+                'recommendations': ["Erreur lors de l'analyse"],
                 'risk_score': 0.0
+            }
+ 
+    async def detect_ransomware(self, file_path: str) -> Dict[str, Any]:
+        """API simple: détecter via chemin de fichier (compatibilité avec les autres modules)."""
+        try:
+            process_info = await self._get_process_info(file_path)
+            features = await self.extract_features(file_path, process_info)
+            result = await self.predict_threat(features, file_path)
+            return {
+                'is_threat': result.get('is_threat', False),
+                'threat_score': float(result.get('confidence', 0.0) or 0.0),
+                'threat_type': result.get('threat_type', 'unknown'),
+                'severity': result.get('severity', 'low'),
+                'details': result
+            }
+        except Exception as e:
+            logger.error(f"Erreur detect_ransomware: {e}")
+            return {
+                'is_threat': False,
+                'threat_score': 0.0,
+                'threat_type': 'unknown',
+                'severity': 'low',
+                'error': str(e)
             }
     
     async def perform_scan(self, scan_type: str = "quick", target_paths: List[str] = None):
