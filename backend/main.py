@@ -4,7 +4,7 @@ Hackathon Togo IT Days 2025
 
 """
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -31,6 +31,20 @@ from ml_engine.threat_intelligence import ThreatIntelligence
 from utils.config import settings
 from utils.i18n import i18n
 from ml_engine.ultra_detector import UltraDetector
+
+# Import système temps réel
+from system_access import (
+    system_access, FileSystemMonitor, ProcessMonitor, 
+    NetworkMonitor, REGISTRY_MONITOR_AVAILABLE
+)
+try:
+    from system_access import RegistryMonitor
+except ImportError:
+    RegistryMonitor = None
+from websocket_manager import manager as ws_manager, event_streamer, handle_websocket_connection
+
+# Import des nouveaux endpoints de monitoring
+from api_endpoints import api_router
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
@@ -62,6 +76,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Inclure les nouveaux endpoints de monitoring
+app.include_router(api_router)
 
 # Modèles Pydantic
 class SystemStatus(BaseModel):
@@ -130,10 +147,30 @@ threat_response = ThreatResponse()
 advanced_hooks = AdvancedSystemHooks()
 threat_intelligence = ThreatIntelligence()
 
+# Initialisation des moniteurs système temps réel
+file_monitor = FileSystemMonitor()
+process_monitor = ProcessMonitor()
+network_monitor = NetworkMonitor()
+
+# Initialisation conditionnelle du RegistryMonitor
+registry_monitor = None
+if REGISTRY_MONITOR_AVAILABLE and RegistryMonitor:
+    try:
+        registry_monitor = RegistryMonitor()
+        logger.info("✅ RegistryMonitor initialisé avec succès")
+    except Exception as e:
+        logger.warning(f"⚠️ Erreur lors de l'initialisation du RegistryMonitor: {e}")
+        registry_monitor = None
+
 @app.on_event("startup")
 async def startup_event():
     """Initialisation au démarrage de l'application"""
     logger.info("🚀 Démarrage de RansomGuard AI v2.0...")
+    
+    # Afficher les infos système
+    sys_info = system_access.get_system_info()
+    logger.info(f"🖥️ OS: {sys_info['os_type']} - Admin: {sys_info['is_admin']}")
+    logger.info(f"📊 Capacités: {sys_info['capabilities']}")
     
     # Charger les modèles au démarrage
     try:
@@ -153,6 +190,52 @@ async def startup_event():
         advanced_hooks.add_callback('file_created', handle_suspicious_file)
         advanced_hooks.add_callback('process_created', handle_suspicious_process)
         advanced_hooks.add_callback('network_connection', handle_suspicious_connection)
+        
+        # Démarrer le streaming WebSocket
+        await event_streamer.start_streaming()
+        
+        # Configurer les callbacks pour le monitoring temps réel
+        async def file_event_callback(event):
+            from websocket_manager import send_file_event
+            await send_file_event(
+                event['action'], 
+                event['path'], 
+                event.get('suspicious', False)
+            )
+        
+        async def process_event_callback(event):
+            from websocket_manager import send_process_event
+            await send_process_event(event['event'], event.get('process', {}))
+            
+        async def network_event_callback(event):
+            from websocket_manager import send_network_event
+            await send_network_event(event['event'], event)
+        
+        # Enregistrer les callbacks
+        file_monitor.add_callback(file_event_callback)
+        process_monitor.add_callback(process_event_callback)
+        network_monitor.add_callback(network_event_callback)
+        
+        # Démarrer le monitoring temps réel si admin
+        if system_access.is_admin:
+            logger.info("🔐 Privilèges admin détectés - Activation monitoring complet")
+            
+            # Surveiller les chemins critiques
+            await file_monitor.start_monitoring()
+            await process_monitor.start_monitoring()
+            await network_monitor.start_monitoring()
+            
+            # Démarrer la surveillance du registre si disponible
+            if registry_monitor:
+                try:
+                    await registry_monitor.start_monitoring()
+                    logger.info("🔍 Surveillance du registre activée")
+                except Exception as e:
+                    logger.warning(f"⚠️ Erreur lors du démarrage de la surveillance du registre: {e}")
+            else:
+                logger.info("ℹ️ Surveillance du registre non disponible")
+        else:
+            logger.warning("⚠️ Privilèges limités - Certaines fonctionnalités réduites")
         
         logger.info("✅ Tous les composants initialisés avec succès")
         
@@ -193,6 +276,39 @@ async def root():
             "Protection contre ransomware"
         ]
     }
+
+@app.websocket("/ws/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, client_id: str):
+    """Endpoint WebSocket pour communication temps réel"""
+    await handle_websocket_connection(websocket, client_id)
+
+@app.get("/api/system/info")
+async def get_system_info():
+    """Obtenir les informations système"""
+    return system_access.get_system_info()
+
+@app.get("/api/system/stats")
+async def get_system_stats():
+    """Obtenir les statistiques système temps réel"""
+    stats = {
+        "file_monitor": {
+            "is_monitoring": file_monitor.is_monitoring,
+            "watched_paths": list(file_monitor.watch_paths),
+            "total_events": sum(len(events) for events in file_monitor.file_history.values())
+        },
+        "process_monitor": {
+            "is_monitoring": process_monitor.is_monitoring,
+            "total_processes": len(process_monitor.process_cache),
+            "suspicious_processes": len(process_monitor.suspicious_processes),
+            "processes": process_monitor.get_suspicious_processes()
+        },
+        "network_monitor": {
+            "is_monitoring": network_monitor.is_monitoring,
+            "stats": network_monitor.get_network_stats()
+        }, 
+        "websocket": ws_manager.get_stats()
+    }
+    return stats
 
 @app.get("/api/status", response_model=SystemStatus)
 async def get_system_status():
@@ -375,7 +491,7 @@ async def start_scan(scan_request: ScanRequest, background_tasks: BackgroundTask
             "files_scanned": 0,
             "threats_found": 0,
             "start_time": datetime.now().isoformat()
-        }
+        } 
     except Exception as e:
         logger.error(f"Erreur lors du démarrage du scan: {e}")
         raise HTTPException(status_code=500, detail=f"Erreur lors du démarrage du scan: {str(e)}")
@@ -446,6 +562,38 @@ async def get_network_monitoring():
     except Exception as e:
         logger.error(f"Erreur monitoring réseau: {e}")
         raise HTTPException(status_code=500, detail="Erreur monitoring réseau")
+
+@app.get("/api/monitoring/registry")
+async def get_registry_monitoring():
+    """Obtenir le statut du monitoring du registre"""
+    try:
+        if not registry_monitor or not registry_monitor.is_monitoring:
+            return {
+                "status": "inactive", 
+                "message": "Monitoring du registre non actif",
+                "available": REGISTRY_MONITOR_AVAILABLE
+            }
+        
+        # Obtenir les statistiques complètes
+        stats = registry_monitor.get_monitoring_stats()
+        
+        return {
+            "status": "active",
+            "monitored_keys": list(registry_monitor.monitored_keys),
+            "total_events": stats['total_events'],
+            "suspicious_events": stats['suspicious_events'],
+            "recent_changes": stats['last_events'],
+            "critical_keys_count": stats['critical_keys_count'],
+            "events_by_key": stats['events_by_key'],
+            "last_update": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Erreur lors de la récupération du monitoring du registre: {e}")
+        return {
+            "status": "error",
+            "message": f"Erreur monitoring registre: {str(e)}",
+            "available": REGISTRY_MONITOR_AVAILABLE
+        }
 
 @app.post("/api/analyze/file")
 async def analyze_file_upload(file: UploadFile = File(...)):

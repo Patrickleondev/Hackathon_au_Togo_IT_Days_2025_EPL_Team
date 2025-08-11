@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Shield, Play, AlertTriangle, CheckCircle, Clock, FileText, Folder, Zap, Target, Settings, BarChart3, Activity } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import axios from 'axios';
+import ScanResults from './ScanResults';
 
 interface ScanStatus {
   is_scanning: boolean;
@@ -429,6 +430,11 @@ const Scan: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Résultats du scan et menaces détectées */}
+      <div className="mt-4">
+        <ScanResults scanId={scanStatus.is_scanning ? undefined : scanHistory[0]?.id} />
+      </div>
     </div>
   );
 };

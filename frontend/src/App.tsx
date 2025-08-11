@@ -8,6 +8,7 @@ import Statistics from './components/Statistics';
 import SettingsPage from './components/Settings';
 import FileUpload from './components/FileUpload';
 import NotificationSystem from './components/NotificationSystem';
+import RealtimeMonitor from './components/RealtimeMonitor';
 import './App.css';
 
 interface Notification {
@@ -155,6 +156,7 @@ function App() {
               <NavLink to="/threats" icon={<AlertTriangle />} label="Menaces détectées" />
               <NavLink to="/scan" icon={<Shield />} label="Scanner le système" />
               <NavLink to="/statistics" icon={<BarChart3 />} label="Statistiques" />
+              <NavLink to="/monitor" icon={<Activity />} label="Monitoring temps réel" />
               <NavLink to="/settings" icon={<Settings />} label="Paramètres" />
             </nav>
 
@@ -166,6 +168,7 @@ function App() {
                 <Route path="/threats" element={<Threats />} />
                 <Route path="/scan" element={<Scan />} />
                 <Route path="/statistics" element={<Statistics />} />
+                <Route path="/monitor" element={<RealtimeMonitor />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Routes>
             </main>
