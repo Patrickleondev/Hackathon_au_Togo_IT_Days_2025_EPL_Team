@@ -351,13 +351,24 @@ async def get_files_monitoring():
                 "monitoring_active": file_monitor.monitoring_active,
                 "directories_monitored": summary.get("total_monitored_directories", 0),
                 "total_files_scanned": 0,
-                "suspicious_files": 0,
+                "suspicious_files": summary.get("suspicious_operations", 0),
                 "threat_level": "Faible",
                 "monitored_directories": list(file_monitor.monitored_dirs.keys()),
                 "file_types_monitored": list(file_monitor.suspicious_extensions),
                 "last_scan": summary.get("last_update", datetime.now().isoformat()),
                 "ml_analysis_enabled": True,
-                "directories": summary.get("directories", []),
+                "directories": [
+                    {
+                        "path": d.get("path"),
+                        "name": os.path.basename(d.get("path", "")) or d.get("path"),
+                        "total_files": d.get("total_files", 0),
+                        "suspicious_files": d.get("suspicious_files", 0),
+                        "last_scan": summary.get("last_update")
+                    }
+                    if isinstance(d, dict)
+                    else {"path": d, "name": os.path.basename(d), "total_files": 0, "suspicious_files": 0, "last_scan": summary.get("last_update")}
+                    for d in summary.get("directories", [])
+                ],
                 "recent_operations": summary.get("recent_operations", [])
             }
         })
@@ -741,23 +752,51 @@ async def get_behavior_monitoring():
         # S'assurer que le moniteur est démarré
         await ensure_monitors_started()
         
-        # Analyser le comportement des processus suspects
-        behavior_analysis = []
-        
+        items: List[Dict[str, Any]] = []
         try:
-            suspicious_count = len(process_monitor.suspicious_processes)
-            processes_count = len(process_monitor.processes)
-        except:
-            suspicious_count = 0
-            processes_count = 0
+            for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent', 'connections', 'open_files']):
+                info = proc.info
+                cpu = info.get('cpu_percent') or 0.0
+                mem = info.get('memory_percent') or 0.0
+                conns = 0
+                try:
+                    conns = len(proc.connections(kind='inet'))
+                except Exception:
+                    conns = len(info.get('connections') or [])
+                open_files_count = 0
+                try:
+                    open_files_count = len(proc.open_files())
+                except Exception:
+                    open_files_count = len(info.get('open_files') or [])
+                indicators: List[str] = []
+                if cpu > 80:
+                    indicators.append("Utilisation CPU élevée")
+                if mem > 50:
+                    indicators.append("Utilisation mémoire élevée")
+                if conns > 100:
+                    indicators.append("Activité réseau excessive")
+                if open_files_count > 1000:
+                    indicators.append("Accès fichiers massif")
+                items.append({
+                    "process_name": info.get('name') or str(proc.pid),
+                    "pid": info.get('pid') or proc.pid,
+                    "network_behavior": conns,
+                    "file_behavior": open_files_count,
+                    "resource_usage": {"cpu": float(cpu), "memory": float(mem)},
+                    "suspicious_indicators": indicators,
+                })
+            # trier par indicateurs puis CPU
+            items.sort(key=lambda x: (-(len(x['suspicious_indicators'])), -x['resource_usage']['cpu']))
+        except Exception as e:
+            logger.warning(f"Analyse comportement psutil partielle: {e}")
         
         return JSONResponse(content={
             "status": "success",
             "data": {
                 "monitoring_active": True,
-                "total_processes_analyzed": processes_count,
-                "suspicious_behaviors": suspicious_count,
-                "behavior_analysis": behavior_analysis,
+                "total_processes_analyzed": len(items),
+                "suspicious_behaviors": sum(1 for it in items if it['suspicious_indicators']),
+                "behavior_analysis": items[:50],
                 "threat_patterns": [
                     "Processus orphelins",
                     "Utilisation excessive de ressources",
