@@ -172,18 +172,22 @@ const ScanResults: React.FC<{ scanId?: string }> = ({ scanId }) => {
               <AlertTriangle className="text-warning me-2" size={20} />
               Menaces détectées ({threats.length})
             </h5>
-            <Button 
-              variant="danger" 
-              size="sm"
-              onClick={() => {
-                const paths = [...new Set(threats.map(t => t.file_path).filter(p => p !== 'N/A'))];
+                          <Button 
+                variant="danger" 
+                size="sm"
+                onClick={() => {
+                const map: Record<string, boolean> = {};
+                const paths = threats
+                  .map(t => t.file_path)
+                  .filter(p => p && p !== 'N/A')
+                  .filter(p => (map[p] ? false : (map[p] = true)));
                 handleEradication(paths, true);
               }}
-              disabled={loading}
-            >
-              <Trash2 size={16} className="me-1" />
-              Éradiquer toutes les menaces
-            </Button>
+                disabled={loading}
+              >
+                <Trash2 size={16} className="me-1" />
+                Éradiquer toutes les menaces
+              </Button>
           </Card.Header>
           <Card.Body>
             <Table responsive hover>
