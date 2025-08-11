@@ -161,22 +161,37 @@ async def get_process_details(pid: int):
 async def get_files_monitoring():
     """Obtenir le statut du monitoring des fichiers"""
     try:
+        # Démarrage paresseux du monitoring si nécessaire
+        if not file_monitor.monitoring_active:
+            try:
+                asyncio.create_task(file_monitor.start_monitoring())
+            except Exception:
+                pass
+        
         summary = file_monitor.get_monitoring_summary()
+        
+        # Agrégations depuis le résumé du moniteur réel
+        directories = summary.get("directories", [])
+        total_files_scanned = sum(d.get("total_files", 0) for d in directories)
+        suspicious_files = sum(d.get("suspicious_files", 0) for d in directories)
+        directories_monitored = summary.get("total_monitored_directories", len(file_monitor.monitored_dirs))
+        recent_operations = summary.get("recent_operations", [])
+        last_scan = summary.get("last_update") or (directories[0]["last_scan"] if directories else None)
         
         return JSONResponse(content={
             "status": "success",
             "data": {
-                "monitoring_active": True,  # Toujours actif
-                "directories_monitored": len(file_monitor.monitored_dirs),
-                "total_files_scanned": summary.get("total_files", 0),
-                "suspicious_files": summary.get("suspicious_files", 0),
-                "threat_level": summary.get("threat_level", "Faible"),
+                "monitoring_active": True,
+                "directories_monitored": directories_monitored,
+                "total_files_scanned": total_files_scanned,
+                "suspicious_files": suspicious_files,
+                "threat_level": "Faible",
                 "monitored_directories": list(file_monitor.monitored_dirs),
                 "file_types_monitored": list(file_monitor.suspicious_extensions),
-                "last_scan": summary.get("last_scan", datetime.now().isoformat()),
+                "last_scan": last_scan or datetime.now().isoformat(),
                 "ml_analysis_enabled": True,
-                "directories": summary.get("directories", []),
-                "recent_operations": summary.get("recent_operations", [])
+                "directories": directories,
+                "recent_operations": recent_operations
             }
         })
     except Exception as e:
