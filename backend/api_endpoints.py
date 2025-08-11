@@ -300,6 +300,74 @@ async def quarantine_file(file_path: str):
         logger.error(f"Erreur quarantaine fichier: {e}")
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
+
+# Suggestions et ajout automatique de dossiers par défaut
+@api_router.get("/monitoring/files/suggested")
+async def get_suggested_directories():
+    """Retourner une liste de dossiers suggérés selon l'OS (sans les ajouter)."""
+    try:
+        home = os.path.expanduser("~")
+        candidates = [
+            os.path.join(home, "Desktop"),
+            os.path.join(home, "Downloads"),
+            os.path.join(home, "Documents"),
+            os.path.join(home, "Pictures"),
+        ]
+        # Variantes Windows possibles
+        win_variants = [
+            os.path.join(home, "Bureau"),
+            os.path.join(home, "Téléchargements"),
+            os.path.join(home, "Images"),
+        ]
+        candidates.extend(win_variants)
+        # Filtrer seulement ceux qui existent et sont lisibles
+        existing: list[str] = []
+        for path in candidates:
+            try:
+                if os.path.isdir(path) and os.access(path, os.R_OK):
+                    existing.append(path)
+            except Exception:
+                continue
+        # Dédupliquer
+        existing = sorted(list(dict.fromkeys(existing)))
+        return JSONResponse(content={"status": "success", "data": existing})
+    except Exception as e:
+        logger.error(f"Erreur suggestions dossiers: {e}")
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@api_router.post("/monitoring/files/add-defaults")
+async def add_default_directories():
+    """Ajouter automatiquement des dossiers par défaut (Desktop/Downloads/Documents/Pictures) s'ils existent."""
+    try:
+        home = os.path.expanduser("~")
+        defaults = [
+            os.path.join(home, "Desktop"),
+            os.path.join(home, "Downloads"),
+            os.path.join(home, "Documents"),
+            os.path.join(home, "Pictures"),
+            # Variantes locales Windows
+            os.path.join(home, "Bureau"),
+            os.path.join(home, "Téléchargements"),
+            os.path.join(home, "Images"),
+        ]
+        added: list[str] = []
+        for path in defaults:
+            try:
+                if os.path.isdir(path) and os.access(path, os.R_OK):
+                    if file_monitor.add_directory(path):
+                        added.append(path)
+            except Exception:
+                continue
+        return JSONResponse(content={
+            "status": "success",
+            "message": f"{len(added)} dossier(s) ajouté(s)",
+            "data": {"added": added, "total_monitored": len(file_monitor.monitored_dirs)}
+        })
+    except Exception as e:
+        logger.error(f"Erreur ajout dossiers par défaut: {e}")
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
 @api_router.get("/monitoring/files/threats")
 async def list_file_threats():
     """Lister les menaces détectées par le moniteur de fichiers (opérations suspectes)."""
