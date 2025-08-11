@@ -177,7 +177,11 @@ class ThreatIntelligence:
         """Obtenir les hashes depuis MalwareBazaar"""
         try:
             url = f"{self.intelligence_sources['malwarebazaar']}query_recent"
-            headers = {'API-KEY': self.api_keys.get('malwarebazaar', '')}
+            api_key = self.api_keys.get('malwarebazaar', '')
+            # MalwareBazaar accepts either 'API-KEY' or 'Auth-Key'
+            headers = {'API-KEY': api_key} if api_key else {}
+            if api_key:
+                headers['Auth-Key'] = api_key
             
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, headers=headers, timeout=30) as response:
@@ -197,6 +201,58 @@ class ThreatIntelligence:
         except Exception as e:
             logger.error(f"Erreur lors de la récupération depuis MalwareBazaar: {e}")
             return []
+
+    async def query_malwarebazaar_hash(self, sha256_hash: str) -> Dict[str, Any]:
+        """Interroger MalwareBazaar pour un hash unique (détails échantillon)."""
+        try:
+            api_key = self.api_keys.get('malwarebazaar', '')
+            headers = {'API-KEY': api_key} if api_key else {}
+            if api_key:
+                headers['Auth-Key'] = api_key
+            url = self.intelligence_sources['malwarebazaar']
+            payload = {"query": "get_file", "sha256_hash": sha256_hash}
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, data=payload, headers=headers, timeout=30) as resp:
+                    txt = await resp.text()
+                    # MalwareBazaar can return JSON or file content; try JSON first
+                    try:
+                        data = json.loads(txt)
+                    except Exception:
+                        data = {"raw": txt}
+                    return {"source": "malwarebazaar", "status": resp.status, "data": data}
+        except Exception as e:
+            logger.error(f"Erreur requête MalwareBazaar (hash): {e}")
+            return {"source": "malwarebazaar", "error": str(e)}
+
+    async def query_hash(self, sha256_hash: str) -> Dict[str, Any]:
+        """Vérifier un SHA-256 contre les listes locales et interroger MalwareBazaar si possible."""
+        try:
+            in_local = sha256_hash in self.threat_lists.get('malicious_hashes', [])
+            result: Dict[str, Any] = {
+                'hash': sha256_hash,
+                'is_malicious_local': in_local,
+                'confidence_local': 0.95 if in_local else 0.0,
+                'sources': []
+            }
+            # If we have API key, enrich from MalwareBazaar
+            if self.api_keys.get('malwarebazaar'):
+                mb = await self.query_malwarebazaar_hash(sha256_hash)
+                result['sources'].append(mb)
+                # Derive confidence if MB reports metadata
+                try:
+                    data = mb.get('data', {})
+                    if isinstance(data, dict) and data.get('query_status') == 'ok':
+                        result['is_malicious_remote'] = True
+                        result['confidence_remote'] = 0.98
+                    else:
+                        result['is_malicious_remote'] = False
+                        result['confidence_remote'] = 0.0
+                except Exception:
+                    pass
+            return result
+        except Exception as e:
+            logger.error(f"Erreur query_hash: {e}")
+            return {'hash': sha256_hash, 'error': str(e)}
     
     async def _update_ransomware_patterns(self):
         """Mettre à jour les patterns de ransomware"""

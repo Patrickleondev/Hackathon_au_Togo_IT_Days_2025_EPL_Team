@@ -215,6 +215,24 @@ class RealFileMonitor:
                     results['ransomware'] = ransomware_result
                 except Exception as e:
                     logger.warning(f"⚠️ Erreur détecteur ransomware: {e}")
+
+            # Threat Intelligence: vérifier le hash contre les IOC (MalwareBazaar, listes locales)
+            try:
+                from ml_engine.threat_intelligence import ThreatIntelligence
+                ti = ThreatIntelligence()
+                # Calculer hash si non calculé
+                if not results.get('file_hash'):
+                    try:
+                        file_hash_local = await self.calculate_file_hash(file_path)
+                    except Exception:
+                        file_hash_local = ''
+                else:
+                    file_hash_local = results.get('file_hash')
+                if file_hash_local:
+                    ti_result = await ti.query_hash(file_hash_local)
+                    results['threat_intelligence'] = ti_result
+            except Exception as e:
+                logger.debug(f"ThreatIntelligence indisponible: {e}")
             
             return results
             
@@ -294,16 +312,14 @@ class RealFileMonitor:
             # Ajouter l'opération à la liste
             self.file_operations.append(file_op)
             
-            # Ajouter au répertoire surveillé
-            for monitored_dir in self.monitored_dirs.values():
-                if file_path.startswith(monitored_dir.path):
-                    monitored_dir.file_operations.append(file_op)
+            # Ajouter au répertoire surveillé et mettre à jour le niveau
+            for mdir in self.monitored_dirs.values():
+                if file_path.startswith(mdir.path):
+                    mdir.file_operations.append(file_op)
                     if file_op.is_suspicious:
-                        monitored_dir.suspicious_files += 1
+                        mdir.suspicious_files += 1
+                    await self.update_directory_threat_level(mdir)
                     break
-            
-                        # Mettre à jour le niveau de menace du répertoire
-            await self.update_directory_threat_level(monitored_dir)
 
             # Diffuser l'événement via WebSocket si possible
             try:
@@ -339,7 +355,7 @@ class RealFileMonitor:
             for pattern in suspicious_patterns:
                 if pattern in filename_lower:
                     threat_score += 0.4
-            
+             
             # Score basé sur les résultats ML
             if ml_results:
                 # Détecteur hybride
@@ -347,25 +363,43 @@ class RealFileMonitor:
                     hybrid_score = ml_results['hybrid'].get('confidence', 0.0)
                     if isinstance(hybrid_score, (int, float)):
                         threat_score += hybrid_score * 0.3
-                
+                 
                 # Détecteur ultra
                 if 'ultra' in ml_results:
                     ultra_score = ml_results['ultra'].get('final_score', 0.0)
                     if isinstance(ultra_score, (int, float)):
                         threat_score += ultra_score * 0.3
-                
+                 
                 # Détecteur ransomware
                 if 'ransomware' in ml_results:
                     ransom_score = ml_results['ransomware'].get('threat_score', 0.0)
                     if isinstance(ransom_score, (int, float)):
                         threat_score += ransom_score * 0.4
-            
+ 
+                 # Threat Intelligence (hash dans listes)
+                 ti = ml_results.get('threat_intelligence') or {}
+                 is_bad_local = bool(ti.get('is_malicious_local'))
+                 is_bad_remote = bool(ti.get('is_malicious_remote'))
+                 if is_bad_local:
+                     threat_score += 0.5
+                 if is_bad_remote:
+                     threat_score += 0.6
+
+            # Diminuer les faux positifs sur types de fichiers bénins si aucune autre preuve forte
+            benign_exts = {'.pdf', '.png', '.jpg', '.jpeg', '.gif', '.txt', '.docx', '.xlsx', '.pptx', '.odt'}
+            if file_ext in benign_exts and ml_results:
+                hybrid_conf = float(ml_results.get('hybrid', {}).get('confidence', 0.0) or 0.0)
+                ransom_conf = float(ml_results.get('ransomware', {}).get('threat_score', 0.0) or 0.0)
+                ti_bad = bool((ml_results.get('threat_intelligence') or {}).get('is_malicious_local') or (ml_results.get('threat_intelligence') or {}).get('is_malicious_remote'))
+                if not ti_bad and hybrid_conf < 0.5 and ransom_conf < 0.5:
+                    threat_score *= 0.5
+             
             # Limiter le score
             threat_score = min(threat_score, 1.0)
-            
+             
         except Exception as e:
             logger.error(f"❌ Erreur lors du calcul du score de menace: {e}")
-        
+         
         return threat_score
     
     async def update_directory_threat_level(self, monitored_dir: MonitoredDirectory):
