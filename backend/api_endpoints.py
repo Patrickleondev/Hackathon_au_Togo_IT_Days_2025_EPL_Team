@@ -18,7 +18,7 @@ from real_file_monitor import file_monitor
 from real_registry_monitor import RealRegistryMonitor
 from unified_system_monitor import UnifiedSystemMonitor
 from scan_report_generator import ScanReportGenerator
-from threat_response import ThreatResponse
+from ml_engine.threat_response import ThreatResponse
 
 logger = logging.getLogger(__name__)
 
