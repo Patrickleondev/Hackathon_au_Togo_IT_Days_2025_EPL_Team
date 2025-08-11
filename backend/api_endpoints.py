@@ -680,3 +680,27 @@ async def get_monitoring_health():
                 "timestamp": datetime.now().isoformat()
             }
         )
+
+# ============================================================================
+# ENDPOINTS THREAT INTELLIGENCE (vérif de hash)
+# ============================================================================
+
+@api_router.get("/intel/hash")
+async def intel_check_hash(sha256: str):
+    """Vérifier un SHA-256 contre la Threat Intelligence (local + MalwareBazaar si clé)."""
+    try:
+        from ml_engine.threat_intelligence import ThreatIntelligence
+        ti = ThreatIntelligence()
+        result = await ti.query_hash(sha256)
+        return JSONResponse(content={"status": "success", "data": result, "timestamp": datetime.now().isoformat()})
+    except Exception as e:
+        logger.error(f"Erreur intel hash: {e}")
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+# ============================================================================
+# HEALTHCHECK
+# ============================================================================
+
+@api_router.get("/health")
+async def api_health():
+    return JSONResponse(content={"status": "ok", "timestamp": datetime.now().isoformat()})
