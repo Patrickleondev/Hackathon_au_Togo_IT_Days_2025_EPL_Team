@@ -376,14 +376,14 @@ class RealFileMonitor:
                     if isinstance(ransom_score, (int, float)):
                         threat_score += ransom_score * 0.4
  
-                 # Threat Intelligence (hash dans listes)
-                 ti = ml_results.get('threat_intelligence') or {}
-                 is_bad_local = bool(ti.get('is_malicious_local'))
-                 is_bad_remote = bool(ti.get('is_malicious_remote'))
-                 if is_bad_local:
-                     threat_score += 0.5
-                 if is_bad_remote:
-                     threat_score += 0.6
+                # Threat Intelligence (hash dans listes)
+                ti = ml_results.get('threat_intelligence') or {}
+                is_bad_local = bool(ti.get('is_malicious_local'))
+                is_bad_remote = bool(ti.get('is_malicious_remote'))
+                if is_bad_local:
+                    threat_score += 0.5
+                if is_bad_remote:
+                    threat_score += 0.6
 
             # Diminuer les faux positifs sur types de fichiers bénins si aucune autre preuve forte
             benign_exts = {'.pdf', '.png', '.jpg', '.jpeg', '.gif', '.txt', '.docx', '.xlsx', '.pptx', '.odt'}
