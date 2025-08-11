@@ -302,8 +302,15 @@ class RealFileMonitor:
                         monitored_dir.suspicious_files += 1
                     break
             
-            # Mettre à jour le niveau de menace du répertoire
+                        # Mettre à jour le niveau de menace du répertoire
             await self.update_directory_threat_level(monitored_dir)
+
+            # Diffuser l'événement via WebSocket si possible
+            try:
+                from websocket_manager import send_file_event
+                await send_file_event(operation_type, file_path, file_op.is_suspicious)
+            except Exception as _ws_err:
+                logger.debug(f"WS non disponible pour événement fichier: {_ws_err}")
             
             # Logger l'opération
             if file_op.is_suspicious:
@@ -312,7 +319,7 @@ class RealFileMonitor:
                 self.suspicious_operations.append(file_op)
             else:
                 logger.info(f"📝 Opération: {operation_type} sur {file_path}")
-                
+            
         except Exception as e:
             logger.error(f"❌ Erreur lors du traitement de l'opération {operation_type} sur {file_path}: {e}")
     

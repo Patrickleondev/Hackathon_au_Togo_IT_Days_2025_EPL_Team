@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { HardDrive, FolderPlus, RefreshCw } from 'lucide-react';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 interface DirectoryInfo {
   path: string;
@@ -27,6 +28,7 @@ const FilesMonitor: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [newDir, setNewDir] = useState('');
   const [adding, setAdding] = useState(false);
+  const [suggested, setSuggested] = useState<string[]>([]);
 
   const load = async () => {
     try {
@@ -38,6 +40,13 @@ const FilesMonitor: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadSuggested = async () => {
+    try {
+      const res = await axios.get('/api/monitoring/files/suggested');
+      setSuggested(res.data?.data || []);
+    } catch {}
   };
 
   const addDirectory = async () => {
@@ -76,11 +85,51 @@ const FilesMonitor: React.FC = () => {
     }
   };
 
+  const addDefaults = async () => {
+    try {
+      setAdding(true);
+      await axios.post('/api/monitoring/files/add-defaults');
+      await load();
+    } catch (e: any) {
+      setError(e?.response?.data?.message || e?.message || 'Erreur ajout par défaut');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  // WebSocket pour événements temps réel
+  const { subscribe, lastMessage } = useWebSocket('/ws', {
+    onOpen: () => {
+      subscribe('file_system');
+      subscribe('threats');
+    }
+  });
+
   useEffect(() => {
     load();
+    loadSuggested();
     const id = setInterval(load, 5000);
     return () => clearInterval(id);
   }, []);
+
+  // Injection des événements temps réel
+  useEffect(() => {
+    if (!lastMessage || !data) return;
+    const evt = lastMessage as any;
+    const type: string = evt.type || '';
+    if (type.startsWith('file_') || type === 'suspicious_file') {
+      const op = {
+        operation_type: type === 'suspicious_file' ? (evt.details?.operation || 'modified') : type.replace('file_', ''),
+        file_path: evt.path || evt.file_path,
+        timestamp: evt.timestamp || new Date().toISOString(),
+        is_suspicious: !!evt.suspicious,
+      } as any;
+      setData({
+        ...data,
+        recent_operations: [op, ...(data.recent_operations || [])].slice(0, 200),
+      });
+    }
+  }, [lastMessage]);
 
   return (
     <div className="space-y-4">
@@ -105,7 +154,18 @@ const FilesMonitor: React.FC = () => {
         <button disabled={adding} onClick={addDirectory} className="inline-flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
           <FolderPlus className="w-4 h-4" /> Ajouter
         </button>
+        <button disabled={adding} onClick={addDefaults} className="inline-flex items-center gap-2 px-3 py-2 border rounded hover:bg-gray-50">
+          Ajouter défauts
+        </button>
       </div>
+
+      {suggested.length > 0 && (
+        <div className="text-sm text-gray-600">
+          Suggestions: {suggested.slice(0, 6).map((s, i) => (
+            <button key={i} onClick={() => setNewDir(s)} className="underline mr-2">{s}</button>
+          ))}
+        </div>
+      )}
 
       {loading && <div className="text-gray-500">Chargement...</div>}
       {error && <div className="text-red-600">{error}</div>}

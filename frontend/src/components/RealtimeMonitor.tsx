@@ -47,7 +47,7 @@ const RealtimeMonitor: React.FC = () => {
   const [alerts, setAlerts] = useState<Event[]>([]);
   
   // WebSocket connection
-  const { isConnected, subscribe, lastMessage } = useWebSocket('ws://localhost:8000/ws', {
+  const { isConnected, subscribe, lastMessage } = useWebSocket('/ws', {
     onOpen: () => {
       // S'abonner aux canaux
       subscribe('threats');
@@ -57,11 +57,11 @@ const RealtimeMonitor: React.FC = () => {
     },
     onMessage: (data) => {
       // Ajouter l'événement à la liste
-      setEvents(prev => [data, ...prev].slice(0, 100)); // Garder les 100 derniers
+      setEvents(prev => [data, ...prev].slice(0, 100));
       
       // Si c'est une alerte ou une menace
       if (data.type === 'threat_detected' || data.severity === 'high' || data.severity === 'critical') {
-        setAlerts(prev => [data, ...prev].slice(0, 20)); // Garder les 20 dernières alertes
+        setAlerts(prev => [data, ...prev].slice(0, 20));
       }
     }
   });
@@ -294,7 +294,7 @@ const RealtimeMonitor: React.FC = () => {
       </Card>
       
       {/* Processus suspects */}
-      {systemStats?.process_monitor.processes.length > 0 && (
+      {Boolean(systemStats?.process_monitor?.processes && systemStats.process_monitor.processes.length > 0) && (
         <Card className="mt-3">
           <Card.Header>
             <h5 className="mb-0">
@@ -304,7 +304,7 @@ const RealtimeMonitor: React.FC = () => {
           </Card.Header>
           <Card.Body>
             <ListGroup>
-              {systemStats.process_monitor.processes.map((proc, idx) => (
+              {systemStats?.process_monitor?.processes?.map((proc, idx) => (
                 <ListGroup.Item key={idx} className="d-flex justify-content-between align-items-center">
                   <div>
                     <strong>{proc.name}</strong>
