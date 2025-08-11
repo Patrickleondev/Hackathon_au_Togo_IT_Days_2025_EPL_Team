@@ -45,6 +45,17 @@ from websocket_manager import manager as ws_manager, event_streamer, handle_webs
 
 # Import des nouveaux endpoints de monitoring
 from api_endpoints import api_router
+# Importer les instances de moniteurs utilisées par les pages API
+try:
+    from api_endpoints import (
+        process_monitor as api_process_monitor,
+        file_monitor as api_file_monitor,
+        registry_monitor as api_registry_monitor,
+    )
+except Exception:
+    api_process_monitor = None
+    api_file_monitor = None
+    api_registry_monitor = None
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
@@ -221,14 +232,15 @@ async def startup_event():
             logger.info("🔐 Privilèges admin détectés - Activation monitoring complet")
             
             # Surveiller les chemins critiques
-            await file_monitor.start_monitoring()
-            await process_monitor.start_monitoring()
-            await network_monitor.start_monitoring()
+            import asyncio as _asyncio
+            _asyncio.create_task(file_monitor.start_monitoring())
+            _asyncio.create_task(process_monitor.start_monitoring())
+            _asyncio.create_task(network_monitor.start_monitoring())
             
             # Démarrer la surveillance du registre si disponible
             if registry_monitor:
                 try:
-                    await registry_monitor.start_monitoring()
+                    _asyncio.create_task(registry_monitor.start_monitoring())
                     logger.info("🔍 Surveillance du registre activée")
                 except Exception as e:
                     logger.warning(f"⚠️ Erreur lors du démarrage de la surveillance du registre: {e}")
@@ -236,6 +248,44 @@ async def startup_event():
                 logger.info("ℹ️ Surveillance du registre non disponible")
         else:
             logger.warning("⚠️ Privilèges limités - Certaines fonctionnalités réduites")
+        
+        # Démarrer automatiquement les moniteurs utilisés par les pages API (Comportement/Fichier)
+        try:
+            if api_file_monitor is not None:
+                # Ajouter des dossiers par défaut s'ils existent
+                home = os.path.expanduser("~")
+                default_dirs = [
+                    os.path.join(home, "Desktop"),
+                    os.path.join(home, "Downloads"),
+                    os.path.join(home, "Documents"),
+                    os.path.join(home, "Pictures"),
+                    # Variantes locales Windows
+                    os.path.join(home, "Bureau"),
+                    os.path.join(home, "Téléchargements"),
+                    os.path.join(home, "Images"),
+                ]
+                for d in default_dirs:
+                    try:
+                        if os.path.isdir(d) and os.access(d, os.R_OK):
+                            api_file_monitor.add_directory(d)
+                    except Exception:
+                        continue
+                # Lancer sans bloquer
+                import asyncio as _asyncio
+                if not api_file_monitor.monitoring_active:
+                    _asyncio.create_task(api_file_monitor.start_monitoring())
+                logger.info("✅ Moniteur Fichier (API) initialisé")
+            if api_process_monitor is not None and not api_process_monitor.monitoring_active:
+                import asyncio as _asyncio
+                _asyncio.create_task(api_process_monitor.start_monitoring())
+                logger.info("✅ Moniteur Processus (API) initialisé")
+            # Registry monitor API côté Windows
+            if api_registry_monitor is not None and api_registry_monitor.is_windows_system():
+                import asyncio as _asyncio
+                _asyncio.create_task(api_registry_monitor.start_monitoring())
+                logger.info("✅ Moniteur Registre (API) initialisé")
+        except Exception as e:
+            logger.warning(f"⚠️ Initialisation moniteurs API: {e}")
         
         logger.info("✅ Tous les composants initialisés avec succès")
         
