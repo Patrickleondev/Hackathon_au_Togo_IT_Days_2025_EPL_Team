@@ -8,10 +8,11 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import agents, analyze, auth, eradication, scans, status, threats
+from app.api.routers import agents, analyze, auth, eradication, intel, scans, status, threats
 from app.core.config import settings
 from app.core.logging import configure_logging, get_logger
 from app.db import SessionLocal
+from app.intel.scheduler import start_scheduler, stop_scheduler
 from app.ml import get_detector
 from app.services.bootstrap import ensure_demo_agent, init_db
 
@@ -51,7 +52,12 @@ async def lifespan(app: FastAPI):
     # Warm the detector (loads model + rules)
     get_detector()
 
+    # Threat-Intelligence scheduler (refreshes feeds every N hours).
+    # No outbound calls happen here — only at scheduled intervals.
+    start_scheduler()
+
     yield
+    stop_scheduler()
     log.info("app.shutdown")
 
 
@@ -82,6 +88,7 @@ def create_app() -> FastAPI:
     app.include_router(scans.router, prefix=api)
     app.include_router(analyze.router, prefix=api)
     app.include_router(eradication.router, prefix=api)
+    app.include_router(intel.router, prefix=api)
 
     @app.get("/")
     def root() -> dict:

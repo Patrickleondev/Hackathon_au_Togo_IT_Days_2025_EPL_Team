@@ -3,6 +3,10 @@
 from app.db.models import (
     Agent,
     Eradication,
+    IntelFeedRun,
+    IntelHash,
+    IntelIndicator,
+    IntelYaraRule,
     Role,
     Scan,
     ScanStatus,

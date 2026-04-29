@@ -83,6 +83,32 @@ class Settings(BaseSettings):
     # ─── Scans ────────────────────────────────────────────────────────────────
     # Hard cap on the number of files inspected during a single directory scan.
     scan_max_files: int = 5000
+
+    # ─── Threat Intelligence (auto-update from external feeds) ─────────────────
+    # Master kill-switch. If False, no outbound calls to feeds are made.
+    intel_enabled: bool = True
+    # How often the scheduler refreshes each feed (hours).
+    intel_update_interval_hours: int = 6
+    # Per-feed enable flags (let ops disable a misbehaving feed without redeploy).
+    intel_malware_bazaar_enabled: bool = True
+    intel_urlhaus_enabled: bool = True
+    intel_threatfox_enabled: bool = True
+    intel_feodo_enabled: bool = True
+    intel_yaraify_enabled: bool = True
+    intel_abuseipdb_enabled: bool = False  # off by default, requires key
+    intel_otx_enabled: bool = False  # off by default, requires key
+    # API credentials. abuse.ch requires a free Auth-Key since 2024.
+    abuse_ch_auth_key: str = ""
+    abuseipdb_api_key: str = ""
+    otx_api_key: str = ""
+    # HTTP behaviour for feed fetches.
+    intel_http_timeout_seconds: float = 30.0
+    intel_http_max_retries: int = 3
+    # Retention: drop indicators older than N days at each refresh.
+    intel_retention_days: int = 90
+    # Per-feed soft cap to avoid blowing up the DB on huge feeds.
+    intel_max_rows_per_feed: int = 250_000
+
     # ─── Logging ──────────────────────────────────────────────────────────
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 

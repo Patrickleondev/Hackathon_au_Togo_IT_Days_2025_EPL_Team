@@ -42,7 +42,10 @@ RUN pip install --upgrade pip \
         "psutil==6.1.0" \
         "email-validator==2.2.0" \
         "yara-python==4.5.1" \
-        "httpx==0.28.1"
+        "httpx==0.28.1" \
+        "apscheduler==3.10.4" \
+        "tenacity==9.0.0" \
+        "python-dateutil==2.9.0.post0"
 
 # ---- app code ----
 COPY app ./app

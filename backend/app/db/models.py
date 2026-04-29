@@ -143,3 +143,81 @@ class Eradication(Base):
     min_confidence: Mapped[float] = mapped_column(Float, default=0.85, nullable=False)
     result: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     initiated_by: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
+
+# ─── Threat Intelligence ──────────────────────────────────────────────────
+class IntelHash(Base):
+    """Known-malicious file hash from external TI feeds (MalwareBazaar, etc.)."""
+
+    __tablename__ = "intel_hashes"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    sha256: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    sha1: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
+    md5: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    imphash: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    ssdeep: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    tlsh: Mapped[str | None] = mapped_column(String(72), nullable=True)
+    file_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    file_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    signature: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    family: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    tags: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    source: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    confidence: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    first_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    extra: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class IntelIndicator(Base):
+    """Network/web indicator (IP, domain, URL, CIDR) from TI feeds."""
+
+    __tablename__ = "intel_indicators"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    # type: "ip" | "domain" | "url" | "cidr"
+    indicator_type: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    value: Mapped[str] = mapped_column(String(2048), nullable=False, index=True)
+    family: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    threat_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    source: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    confidence: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    attack_techniques: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    tags: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    first_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    extra: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class IntelYaraRule(Base):
+    """Auto-fetched YARA rule from a community feed (e.g. YARAify)."""
+
+    __tablename__ = "intel_yara_rules"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    rule_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    source: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    sha256: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    author: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    added_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class IntelFeedRun(Base):
+    """Audit trail for each feed refresh attempt."""
+
+    __tablename__ = "intel_feed_runs"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    feed: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # "ok" | "error" | "skipped"
+    status: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    ingested: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    updated: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

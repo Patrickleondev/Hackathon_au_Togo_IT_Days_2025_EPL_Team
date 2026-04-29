@@ -136,6 +136,27 @@ class UnifiedDetector:
                 description=f"Could not analyze: {feats.error}",
             )
 
+        # Threat-Intel lookup short-circuit. A known-bad sha256 is the
+        # highest-quality signal we have — overrides everything below.
+        ti_hit = _ti_lookup_hash(feats.sha256)
+        if ti_hit is not None:
+            return DetectionResult(
+                is_threat=True,
+                confidence=max(0.95, ti_hit["confidence"]),
+                severity="critical",
+                threat_type=ti_hit.get("family") or "known_malware",
+                score_heuristic=self._heuristic_score(feats),
+                score_ml=None,
+                score_yara=None,
+                indicators={**feats.to_dict(), "ti": ti_hit},
+                matched_rules=[f"ti:{ti_hit['source']}"],
+                sha256=feats.sha256,
+                description=(
+                    f"SHA-256 matches known-malicious hash from {ti_hit['source']} "
+                    f"(family={ti_hit.get('family') or 'unknown'})"
+                ),
+            )
+
         h = self._heuristic_score(feats)
         m = self._ml_score(feats)
         y, matched = self._yara_score(feats, raw)
@@ -286,3 +307,34 @@ def get_detector() -> UnifiedDetector:
         _detector = UnifiedDetector()
         _detector.load()
     return _detector
+
+
+def _ti_lookup_hash(sha256: str) -> dict[str, Any] | None:
+    """Look up a sha256 in the local TI DB. Returns a dict or ``None``.
+
+    Imported lazily and wrapped in a broad except so a TI-DB outage never
+    blocks scoring. The detector path must keep working even with an empty
+    or unreachable database.
+    """
+    if not sha256 or len(sha256) != 64:
+        return None
+    try:
+        from app.db.session import SessionLocal  # local import: avoid cycle
+        from app.intel.service import IntelService
+
+        with SessionLocal() as db:
+            row = IntelService(db).lookup_hash(sha256)
+            if row is None:
+                return None
+            return {
+                "source": row.source,
+                "family": row.family,
+                "signature": row.signature,
+                "tags": list(row.tags or []),
+                "confidence": float(row.confidence),
+                "first_seen_at": row.first_seen_at.isoformat() if row.first_seen_at else None,
+                "last_seen_at": row.last_seen_at.isoformat() if row.last_seen_at else None,
+            }
+    except Exception as exc:  # noqa: BLE001 — never break scoring
+        log.warning("ti.lookup_failed", error=str(exc))
+        return None
