@@ -33,15 +33,15 @@ docker compose -f infra/docker-compose.prod.yml up -d backend worker
 ```
 
 Or hot-update by `docker cp`-ing them into the running container under
-`/var/lib/ransomguard/rules/` and restarting the backend.
+`/var/lib/guardian/rules/` and restarting the backend.
 
 ## Re-training
 
 ```bash
 docker compose -f infra/docker-compose.prod.yml exec backend \
     python -m scripts.train_detector \
-        --benign /var/lib/ransomguard/samples/benign \
-        --malicious /var/lib/ransomguard/samples/malicious
+        --benign /var/lib/guardian/samples/benign \
+        --malicious /var/lib/guardian/samples/malicious
 ```
 
 The new model is loaded on the next backend restart, or by calling
@@ -53,7 +53,7 @@ The new model is loaded on the next backend restart, or by calling
 |----------|-------------------|
 | `GET /api/health` | Backend process is alive |
 | `GET /api/status` | DB connectivity + detector readiness + system metrics |
-| `docker inspect --format='{{.State.Health.Status}}' ransomguard-backend` | Container health |
+| `docker inspect --format='{{.State.Health.Status}}' guardian-backend` | Container health |
 
 ## Scaling
 
@@ -72,4 +72,4 @@ The architecture is intentionally horizontal-friendly:
 | `detector_ready=false` on `/status` | Run `train_detector`; check `MODELS_DIR` is mounted writable |
 | YARA scores always 0 | `apt-get install libyara-dev` in image; or rules dir empty |
 | All uploads return 413 | Increase `MAX_UPLOAD_MB` AND `client_max_body_size` in nginx |
-| Agents 401 after 30 days | Re-enroll: `ransomguard-agent.exe --enroll` |
+| Agents 401 after 30 days | Re-enroll: `guardian-agent.exe --enroll` |

@@ -1,7 +1,7 @@
-# RansomGuard Agent (Windows / Linux)
+# GuardIAn Agent (Windows / Linux)
 
 Lightweight Python agent that watches the file-system, performs cheap local
-triage, and uploads suspicious files to the central RansomGuard API for
+triage, and uploads suspicious files to the central GuardIAn API for
 deep analysis.
 
 ## Install (developer mode)
@@ -28,27 +28,27 @@ RG_UPLOAD_MAX_MB=50
 ## First run
 
 ```powershell
-python -m ransomguard_agent --enroll        # registers with the backend, saves token
-python -m ransomguard_agent                 # starts the watcher loop
+python -m guardian_agent --enroll        # registers with the backend, saves token
+python -m guardian_agent                 # starts the watcher loop
 ```
 
 ## Build a single-file `.exe` (Windows)
 
 ```powershell
 pip install .[build]
-pyinstaller --onefile --name ransomguard-agent ransomguard_agent\__main__.py
+pyinstaller --onefile --name guardian-agent guardian_agent\__main__.py
 ```
 
-The binary is produced in `dist\ransomguard-agent.exe`.
+The binary is produced in `dist\guardian-agent.exe`.
 
 ## Run as a Windows Service
 
 Use NSSM (https://nssm.cc) or `sc.exe`:
 
 ```powershell
-nssm install RansomGuardAgent "C:\Program Files\RansomGuard\ransomguard-agent.exe"
-nssm set    RansomGuardAgent AppDirectory "C:\Program Files\RansomGuard"
-nssm start  RansomGuardAgent
+nssm install GuardIAnAgent "C:\Program Files\GuardIAn\guardian-agent.exe"
+nssm set    GuardIAnAgent AppDirectory "C:\Program Files\GuardIAn"
+nssm start  GuardIAnAgent
 ```
 
 ## Threat model

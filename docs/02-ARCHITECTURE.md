@@ -93,7 +93,7 @@ vice-versa.
 ## Storage layout (inside the backend container)
 
 ```
-/var/lib/ransomguard/
+/var/lib/guardian/
 ├── uploads/        # incoming files for analyze/file
 ├── quarantine/     # quarantined samples (server-side eradication)
 ├── models/         # detector.joblib (scikit-learn bundle)

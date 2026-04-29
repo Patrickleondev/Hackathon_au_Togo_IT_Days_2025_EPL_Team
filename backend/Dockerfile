@@ -49,14 +49,14 @@ COPY app ./app
 COPY scripts ./scripts
 
 # Non-root user
-RUN useradd --create-home --uid 1000 ransomguard \
-    && mkdir -p /var/lib/ransomguard /var/lib/ransomguard/uploads \
-                /var/lib/ransomguard/quarantine /var/lib/ransomguard/models \
-                /var/lib/ransomguard/rules \
-    && cp -r app/ml/rules/* /var/lib/ransomguard/rules/ 2>/dev/null || true \
-    && chown -R ransomguard:ransomguard /app /var/lib/ransomguard
+RUN useradd --create-home --uid 1000 guardian \
+    && mkdir -p /var/lib/guardian /var/lib/guardian/uploads \
+                /var/lib/guardian/quarantine /var/lib/guardian/models \
+                /var/lib/guardian/rules \
+    && cp -r app/ml/rules/* /var/lib/guardian/rules/ 2>/dev/null || true \
+    && chown -R guardian:guardian /app /var/lib/guardian
 
-USER ransomguard
+USER guardian
 
 EXPOSE 8000
 

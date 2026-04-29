@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="50%" stop-color="#1e3a8a"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <circle cx="640" cy="360" r="320" fill="url(#glow)"/>
+  <g transform="translate(640 320)" fill="none" stroke="#60a5fa" stroke-width="6" stroke-linejoin="round">
+    <path d="M 0,-90 L 80,-50 L 80,30 C 80,80 40,110 0,120 C -40,110 -80,80 -80,30 L -80,-50 Z"/>
+    <polyline points="-30,10 -10,30 30,-15" stroke-linecap="round" stroke-width="8"/>
+  </g>
+  <text x="640" y="510" text-anchor="middle" fill="#e2e8f0" font-family="system-ui,sans-serif" font-size="56" font-weight="700">GuardIAn</text>
+  <text x="640" y="560" text-anchor="middle" fill="#94a3b8" font-family="system-ui,sans-serif" font-size="24">Démonstration vidéo</text>
+  <g transform="translate(640 630)">
+    <circle r="36" fill="#3b82f6" opacity="0.9"/>
+    <polygon points="-10,-15 -10,15 18,0" fill="white"/>
+  </g>
+</svg>

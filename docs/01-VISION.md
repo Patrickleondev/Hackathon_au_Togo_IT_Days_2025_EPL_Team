@@ -4,7 +4,7 @@
 
 Ransomware is the #1 threat against organizations in West Africa. Most
 SMBs and public services in Togo cannot afford commercial XDR licenses.
-**RansomGuard** delivers a self-hostable, open-source detection and
+**GuardIAn** delivers a self-hostable, open-source detection and
 response platform that runs on a single Linux server and protects an
 entire fleet of Windows / Linux endpoints.
 
@@ -36,8 +36,8 @@ Assumed adversaries:
 
 ```
 ┌──────────────────────┐         ┌────────────────────────────┐
-│  Windows endpoints   │ HTTPS+  │   RansomGuard Backend      │
-│  ransomguard-agent   │ JWT     │   FastAPI + Worker         │
+│  Windows endpoints   │ HTTPS+  │   GuardIAn Backend      │
+│  guardian-agent   │ JWT     │   FastAPI + Worker         │
 │  (watchdog + httpx)  │ ───────►│   PostgreSQL + Redis       │
 └──────────────────────┘         │   Unified detector         │
                                  │   (Heuristic+ML+YARA)      │

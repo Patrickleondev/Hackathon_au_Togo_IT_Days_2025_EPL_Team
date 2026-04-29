@@ -1,5 +1,5 @@
 {
-  "name": "ransomguard-frontend",
+  "name": "guardian-frontend",
   "version": "2.0.0",
   "private": true,
   "type": "module",
@@ -15,7 +15,9 @@
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",
     "recharts": "^2.13.3",
-    "lucide-react": "^0.468.0"
+    "lucide-react": "^0.468.0",
+    "framer-motion": "^11.15.0",
+    "clsx": "^2.1.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.18",

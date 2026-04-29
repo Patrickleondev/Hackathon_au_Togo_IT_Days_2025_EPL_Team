@@ -1,7 +1,7 @@
 [project]
-name = "ransomguard-backend"
+name = "guardian-backend"
 version = "2.0.0"
-description = "RansomGuard central API — FastAPI + ML detector + RQ worker"
+description = "GuardIAn central API — FastAPI + ML detector + RQ worker"
 requires-python = ">=3.11"
 authors = [{ name = "EPL Team" }]
 license = { text = "MIT" }

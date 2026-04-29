@@ -57,7 +57,7 @@ docs(install): document offline training
 ## Security disclosures
 
 Do not open public issues for security flaws — email
-`security@ransomguard.local` (placeholder). Provide:
+`security@guardian.local` (placeholder). Provide:
 
 - Affected version
 - Reproduction steps

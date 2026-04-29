@@ -1,4 +1,4 @@
-name: ransomguard-prod
+name: guardian-prod
 
 services:
   db:
@@ -33,7 +33,7 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile
-    image: ransomguard/backend:prod
+    image: guardian/backend:prod
     restart: unless-stopped
     depends_on:
       db: { condition: service_healthy }
@@ -42,7 +42,7 @@ services:
     environment:
       APP_ENV: prod
     volumes:
-      - rg_data:/var/lib/ransomguard
+      - guardian_data:/var/lib/guardian
     networks: [internal]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/health"]
@@ -51,7 +51,7 @@ services:
       retries: 3
 
   worker:
-    image: ransomguard/backend:prod
+    image: guardian/backend:prod
     restart: unless-stopped
     depends_on:
       backend: { condition: service_started }
@@ -60,7 +60,7 @@ services:
     environment:
       APP_ENV: prod
     volumes:
-      - rg_data:/var/lib/ransomguard
+      - guardian_data:/var/lib/guardian
     networks: [internal]
     command: ["python", "-m", "app.workers"]
 
@@ -69,14 +69,14 @@ services:
       context: ../frontend
       dockerfile: Dockerfile
       target: prod
-    image: ransomguard/frontend:prod
+    image: guardian/frontend:prod
     restart: unless-stopped
     networks: [internal]
 
   nginx:
     build:
       context: ./nginx
-    image: ransomguard/nginx:prod
+    image: guardian/nginx:prod
     restart: unless-stopped
     depends_on: [backend, frontend]
     ports:
@@ -89,7 +89,7 @@ services:
 volumes:
   pgdata:
   redisdata:
-  rg_data:
+  guardian_data:
 
 networks:
   internal:

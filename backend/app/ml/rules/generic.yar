@@ -1,5 +1,5 @@
 /*
-   Generic ransomware indicators — RansomGuard v2
+   Generic ransomware indicators — GuardIAn v2
    These rules are intentionally broad. Each match contributes a moderate
    YARA score (0.5 base + 0.15 per match, capped at 1.0).
 */
@@ -7,7 +7,7 @@
 rule Ransom_Note_Generic
 {
     meta:
-        author = "RansomGuard"
+        author = "GuardIAn"
         description = "Common ransomware ransom-note phrases"
     strings:
         $a = "your files have been encrypted" nocase

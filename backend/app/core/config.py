@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     )
 
     # ─── App ──────────────────────────────────────────────────────────────
-    app_name: str = "RansomGuard"
+    app_name: str = "GuardIAn"
     app_env: Literal["dev", "prod", "test"] = "dev"
     app_version: str = "2.0.0"
     api_prefix: str = "/api"
@@ -43,21 +43,21 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_access_ttl_minutes: int = 60
     jwt_agent_ttl_days: int = 30
-    bootstrap_admin_email: str = "admin@ransomguard.local"
+    bootstrap_admin_email: str = "admin@guardian.local"
     bootstrap_admin_password: str = "change-me-on-first-login"
 
     # ─── Database ─────────────────────────────────────────────────────────
-    database_url: str = "postgresql+psycopg://ransomguard:ransomguard@db:5432/ransomguard"
+    database_url: str = "postgresql+psycopg://guardian:guardian@db:5432/guardian"
 
     # ─── Redis / queue ────────────────────────────────────────────────────
     redis_url: str = "redis://redis:6379/0"
 
     # ─── Storage ──────────────────────────────────────────────────────────
-    storage_dir: str = "/var/lib/ransomguard"
-    uploads_dir: str = "/var/lib/ransomguard/uploads"
-    quarantine_dir: str = "/var/lib/ransomguard/quarantine"
-    models_dir: str = "/var/lib/ransomguard/models"
-    rules_dir: str = "/var/lib/ransomguard/rules"
+    storage_dir: str = "/var/lib/guardian"
+    uploads_dir: str = "/var/lib/guardian/uploads"
+    quarantine_dir: str = "/var/lib/guardian/quarantine"
+    models_dir: str = "/var/lib/guardian/models"
+    rules_dir: str = "/var/lib/guardian/rules"
     max_upload_mb: int = 100
 
     # ─── Detector thresholds ──────────────────────────────────────────────

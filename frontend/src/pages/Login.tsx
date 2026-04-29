@@ -4,7 +4,7 @@ import { Shield } from 'lucide-react'
 import { Auth } from '@/api/client'
 
 export default function Login() {
-  const [email, setEmail] = useState('admin@ransomguard.local')
+  const [email, setEmail] = useState('admin@guardian.local')
   const [password, setPassword] = useState('')
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -15,7 +15,7 @@ export default function Login() {
     setErr(null); setLoading(true)
     try {
       await Auth.login(email, password)
-      navigate('/')
+      navigate('/app')
     } catch (e: any) {
       setErr(e.response?.data?.detail || 'Login failed')
     } finally { setLoading(false) }
@@ -25,7 +25,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-900 to-brand-700">
       <form onSubmit={onSubmit} className="card w-96 space-y-4">
         <div className="flex items-center gap-2 text-brand-700">
-          <Shield /> <h1 className="text-xl font-bold">RansomGuard</h1>
+          <Shield /> <h1 className="text-xl font-bold">GuardIAn</h1>
         </div>
         <div>
           <label className="text-sm text-slate-600">Email</label>

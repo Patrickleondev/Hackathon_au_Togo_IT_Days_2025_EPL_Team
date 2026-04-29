@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="RansomGuard API",
+        title="GuardIAn API",
         description="Ransomware detection & response — central API.",
         version=settings.app_version,
         docs_url="/docs",

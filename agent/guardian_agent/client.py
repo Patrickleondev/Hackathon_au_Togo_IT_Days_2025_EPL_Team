@@ -1,4 +1,4 @@
-"""HTTP client for the central RansomGuard API."""
+"""HTTP client for the central GuardIAn API."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import Any
 
 import httpx
 
-from ransomguard_agent.config import settings
+from guardian_agent.config import settings
 
 
 def _url(path: str) -> str:
@@ -15,7 +15,7 @@ def _url(path: str) -> str:
 
 
 def _headers() -> dict[str, str]:
-    h = {"User-Agent": "ransomguard-agent/2.0"}
+    h = {"User-Agent": "guardian-agent/2.0"}
     if settings.token:
         h["Authorization"] = f"Bearer {settings.token}"
     return h

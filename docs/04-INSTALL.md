@@ -34,7 +34,7 @@ docker compose -f infra/docker-compose.yml exec backend \
     python -m scripts.train_detector
 ```
 
-The model is written to `/var/lib/ransomguard/models/detector.joblib` inside
+The model is written to `/var/lib/guardian/models/detector.joblib` inside
 the `rg_data` volume.
 
 ## Production deployment

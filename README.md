@@ -1,8 +1,8 @@
-# RansomGuard — Detection & Response Platform
+# GuardIAn — Detection & Response Platform
 
 > **Hackathon Togo IT Days 2025 — EPL Team — v2 Refonte**
 
-RansomGuard is an open-source **EDR-style** (Endpoint Detection & Response) platform focused on **ransomware** and other commodity malware. It is composed of three independent components designed to scale from a single workstation to a small SOC:
+GuardIAn is an open-source **EDR-style** (Endpoint Detection & Response) platform focused on **ransomware** and other commodity malware. It is composed of three independent components designed to scale from a single workstation to a small SOC:
 
 | Component | Role | Tech |
 |---|---|---|
@@ -13,7 +13,7 @@ RansomGuard is an open-source **EDR-style** (Endpoint Detection & Response) plat
 ```mermaid
 flowchart LR
   subgraph EP["Windows Endpoint"]
-    A[ransomguard-agent]
+    A[guardian-agent]
   end
   subgraph SRV["Linux Server (Docker)"]
     NG[nginx + TLS] --> API[FastAPI]
@@ -34,17 +34,19 @@ flowchart LR
 ```bash
 git clone https://github.com/Patrickleondev/Hackathon_au_Togo_IT_Days_2025_EPL_Team.git
 cd Hackathon_au_Togo_IT_Days_2025_EPL_Team
-cp infra/.env.example .env
+cp infra/.env.example infra/.env
+# Edit infra/.env and set SECRET_KEY, BOOTSTRAP_ADMIN_PASSWORD, POSTGRES_PASSWORD
 docker compose -f infra/docker-compose.yml up --build
 ```
 
 Then open:
 
-- Frontend dashboard: http://localhost:5173
+- Public site (landing + démos vidéo) : http://localhost:5173
+- Console SOC (login required): http://localhost:5173/login → http://localhost:5173/app
 - Backend API docs: http://localhost:8000/docs
 - API health: http://localhost:8000/api/health
 
-Default analyst credentials are printed in the backend log on first boot.
+Default analyst credentials come from `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` in `infra/.env`.
 
 ---
 

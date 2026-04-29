@@ -1,7 +1,7 @@
 .PHONY: help dev prod down logs build train test fmt lint clean
 
 help:
-	@echo "RansomGuard — make targets"
+	@echo "GuardIAn — make targets"
 	@echo "  make dev         Start full stack (backend + worker + frontend + db + redis) with hot-reload"
 	@echo "  make prod        Start production stack (nginx + TLS + tuned containers)"
 	@echo "  make down        Stop and remove containers"

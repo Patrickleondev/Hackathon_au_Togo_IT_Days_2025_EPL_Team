@@ -72,7 +72,7 @@ Then login at <https://soc.example.tg> with the bootstrap credentials.
 - [ ] Put the Postgres port behind the internal Docker network only (default).
 - [ ] Run a host firewall (`ufw allow 22, 80, 443`).
 - [ ] Schedule daily `pg_dump` to off-host storage.
-- [ ] Mount `/var/lib/ransomguard` on encrypted storage.
+- [ ] Mount `/var/lib/guardian` on encrypted storage.
 - [ ] Enable `fail2ban` for `/api/auth/login`.
 - [ ] Subscribe to security advisories for FastAPI / SQLAlchemy / Pillow.
 

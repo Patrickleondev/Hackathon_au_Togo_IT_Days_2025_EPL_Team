@@ -13,7 +13,7 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key-not-for-production")
 os.environ.setdefault("BOOTSTRAP_ADMIN_EMAIL", "admin@test.local")
 os.environ.setdefault("BOOTSTRAP_ADMIN_PASSWORD", "TestPassword123!")
 
-_tmp = Path(tempfile.gettempdir()) / "ransomguard_test"
+_tmp = Path(tempfile.gettempdir()) / "guardian_test"
 _tmp.mkdir(exist_ok=True)
 os.environ.setdefault("STORAGE_DIR", str(_tmp))
 os.environ.setdefault("UPLOADS_DIR", str(_tmp / "uploads"))

@@ -1,8 +1,8 @@
 """Agent main loop.
 
 Usage (after enrollment):
-    python -m ransomguard_agent --enroll          # registers with the backend
-    python -m ransomguard_agent                   # runs the watcher service
+    python -m guardian_agent --enroll          # registers with the backend
+    python -m guardian_agent                   # runs the watcher service
 """
 
 from __future__ import annotations
@@ -20,13 +20,13 @@ from threading import Thread
 
 import psutil
 
-from ransomguard_agent import __version__
-from ransomguard_agent import client as api
-from ransomguard_agent.config import settings
-from ransomguard_agent.heuristics import is_suspicious
-from ransomguard_agent.watcher import FileWatcher
+from guardian_agent import __version__
+from guardian_agent import client as api
+from guardian_agent.config import settings
+from guardian_agent.heuristics import is_suspicious
+from guardian_agent.watcher import FileWatcher
 
-log = logging.getLogger("ransomguard-agent")
+log = logging.getLogger("guardian-agent")
 STATE_FILE = settings.state_dir / "state.json"
 
 
@@ -132,7 +132,7 @@ def main() -> int:
         level=settings.log_level,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
-    parser = argparse.ArgumentParser("ransomguard-agent")
+    parser = argparse.ArgumentParser("guardian-agent")
     parser.add_argument("--enroll", action="store_true", help="Register this host with the backend")
     args = parser.parse_args()
 

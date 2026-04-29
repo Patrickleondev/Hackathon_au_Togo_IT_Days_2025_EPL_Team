@@ -36,7 +36,7 @@ export default function ScansPage() {
         </div>
         <div>
           <label className="text-sm text-slate-600">Target paths (comma-separated, server-side, defaults to uploads dir)</label>
-          <input className="input" value={paths} onChange={(e) => setPaths(e.target.value)} placeholder="/var/lib/ransomguard/uploads" />
+          <input className="input" value={paths} onChange={(e) => setPaths(e.target.value)} placeholder="/var/lib/guardian/uploads" />
         </div>
         <button className="btn-primary" disabled={busy} onClick={start}>Start scan</button>
       </div>

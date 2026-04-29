@@ -97,8 +97,8 @@ Thresholds are exposed as env variables (`THRESHOLD_LOW`, `THRESHOLD_MEDIUM`,
 ```bash
 docker compose -f infra/docker-compose.yml exec backend \
     python -m scripts.train_detector \
-        --benign /var/lib/ransomguard/samples/benign \
-        --malicious /var/lib/ransomguard/samples/malicious
+        --benign /var/lib/guardian/samples/benign \
+        --malicious /var/lib/guardian/samples/malicious
 ```
 
 If you don't have real samples yet, the script auto-generates a synthetic

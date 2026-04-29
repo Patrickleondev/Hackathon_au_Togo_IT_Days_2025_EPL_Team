@@ -67,7 +67,7 @@ Example body:
   "threat_id": "abc...",
   "actions": ["quarantine_files", "kill_processes"],
   "scope": {
-    "paths": ["/var/lib/ransomguard/uploads/foo.exe"],
+    "paths": ["/var/lib/guardian/uploads/foo.exe"],
     "agent_ids": [],
     "process_names": []
   },

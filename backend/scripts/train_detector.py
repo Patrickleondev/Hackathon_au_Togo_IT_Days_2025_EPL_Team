@@ -7,8 +7,8 @@ RandomForestClassifier wrapped with a StandardScaler, and writes
 
 Usage:
     python -m scripts.train_detector \
-        --benign /var/lib/ransomguard/samples/benign \
-        --malicious /var/lib/ransomguard/samples/malicious
+        --benign /var/lib/guardian/samples/benign \
+        --malicious /var/lib/guardian/samples/malicious
 
 If folders are missing, a synthetic dataset is generated so the binary
 still produces a usable model for development and demo.
@@ -99,7 +99,7 @@ def _synthetic(n: int = 600) -> tuple[np.ndarray, np.ndarray]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train RansomGuard unified detector")
+    parser = argparse.ArgumentParser(description="Train GuardIAn unified detector")
     parser.add_argument("--benign", type=Path, default=None)
     parser.add_argument("--malicious", type=Path, default=None)
     parser.add_argument(

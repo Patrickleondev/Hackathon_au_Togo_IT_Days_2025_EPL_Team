@@ -21,7 +21,7 @@ class AgentSettings(BaseSettings):
     token: str = ""           # filled in after enrollment
     agent_id: str = ""        # filled in after enrollment
 
-    state_dir: Path = Path.home() / ".ransomguard-agent"
+    state_dir: Path = Path.home() / ".guardian-agent"
 
     # Watch paths (defaults to user home; admin can override)
     watch_paths: list[str] = []

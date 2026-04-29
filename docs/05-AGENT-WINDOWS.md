@@ -13,15 +13,15 @@ cd agent
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e .[build]
-pyinstaller --onefile --name ransomguard-agent ransomguard_agent\__main__.py
+pyinstaller --onefile --name guardian-agent guardian_agent\__main__.py
 ```
 
-The binary is produced in `agent\dist\ransomguard-agent.exe`.
+The binary is produced in `agent\dist\guardian-agent.exe`.
 
 ## Deploy on a workstation
 
-1. Copy `ransomguard-agent.exe` to `C:\Program Files\RansomGuard\`.
-2. Create `C:\Program Files\RansomGuard\.env`:
+1. Copy `guardian-agent.exe` to `C:\Program Files\GuardIAn\`.
+2. Create `C:\Program Files\GuardIAn\.env`:
 
    ```env
    RG_BACKEND_URL=https://soc.example.com
@@ -34,19 +34,19 @@ The binary is produced in `agent\dist\ransomguard-agent.exe`.
 3. Enroll the agent:
 
    ```powershell
-   cd "C:\Program Files\RansomGuard"
-   .\ransomguard-agent.exe --enroll
+   cd "C:\Program Files\GuardIAn"
+   .\guardian-agent.exe --enroll
    ```
 
-   This writes the JWT token to `%USERPROFILE%\.ransomguard-agent\state.json`.
+   This writes the JWT token to `%USERPROFILE%\.guardian-agent\state.json`.
 
 4. Install as a Windows service (NSSM):
 
    ```powershell
-   nssm install RansomGuardAgent "C:\Program Files\RansomGuard\ransomguard-agent.exe"
-   nssm set    RansomGuardAgent AppDirectory "C:\Program Files\RansomGuard"
-   nssm set    RansomGuardAgent ObjectName LocalSystem
-   nssm start  RansomGuardAgent
+   nssm install GuardIAnAgent "C:\Program Files\GuardIAn\guardian-agent.exe"
+   nssm set    GuardIAnAgent AppDirectory "C:\Program Files\GuardIAn"
+   nssm set    GuardIAnAgent ObjectName LocalSystem
+   nssm start  GuardIAnAgent
    ```
 
 ## What the agent does

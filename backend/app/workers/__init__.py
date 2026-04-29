@@ -1,7 +1,7 @@
 """RQ worker entrypoint.
 
 Usage (inside the container):
-    rq worker --url $REDIS_URL ransomguard
+    rq worker --url $REDIS_URL guardian
 
 Tasks live in app.workers.tasks.
 """
@@ -24,7 +24,7 @@ def main() -> int:
     redis = Redis.from_url(settings.redis_url)
     log.info("worker.start", redis=settings.redis_url)
     with Connection(redis):
-        worker = Worker([Queue("ransomguard")])
+        worker = Worker([Queue("guardian")])
         worker.work(with_scheduler=True)
     return 0
 
