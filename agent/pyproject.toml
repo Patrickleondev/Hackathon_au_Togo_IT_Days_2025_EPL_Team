@@ -1,0 +1,20 @@
+[project]
+name = "ransomguard-agent"
+version = "2.0.0"
+description = "RansomGuard Windows endpoint agent"
+requires-python = ">=3.11"
+dependencies = [
+    "watchdog>=6.0.0",
+    "psutil>=6.1.0",
+    "httpx>=0.28.1",
+    "pydantic>=2.9.2",
+    "pydantic-settings>=2.6.1",
+    "structlog>=24.4.0",
+]
+
+[project.optional-dependencies]
+build = ["pyinstaller>=6.11.1"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

@@ -1,138 +1,82 @@
-# Python
+# ─── Python ───────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# Virtual environments
+.eggs/
+build/
+dist/
+.venv/
 venv/
 env/
-ENV/
-env.bak/
-venv.bak/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
 
-# IDE
+# ─── Node / Frontend ──────────────────────────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/build/
+*.tsbuildinfo
+.eslintcache
+.parcel-cache/
+
+# ─── ML models & data ─────────────────────────────────────────────────────
+*.pkl
+*.joblib
+*.bin
+*.h5
+*.pt
+*.pth
+*.onnx
+
+# ─── Logs & runtime ───────────────────────────────────────────────────────
+logs/
+*.log
+*.pid
+quarantine/
+data/runtime/
+backend/static/uploads/
+backend/static/quarantine/
+
+# ─── Secrets ──────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+secrets/
+
+# ─── IDE / OS ─────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
-*.swo
-*~
-
-# OS
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
 
-# Logs
-*.log
-logs/
+# ─── Docker volumes ───────────────────────────────────────────────────────
+infra/data/
 
-# Database
-*.db
-*.sqlite3
+# ─── Agent build artifacts ────────────────────────────────────────────────
+agent/dist/
+agent/build/
+*.spec
 
-# Models (optionnel - peut être inclus pour le hackathon)
-# backend/models/*.pkl
-# backend/models/*.json
-
-# Modèles entraînés - à exclure du contrôle de version
-models/
-backend/models/
-**/models/
-*.pkl
-*.joblib
-*.h5
-*.onnx
-*.pt
-*.pth
-
-# Node modules
-frontend/node_modules/
-frontend/.next/
-frontend/out/
-
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Temporary files
-*.tmp
-*.temp
-temp/
-tmp/
-
-# Coverage reports
-htmlcov/
-.coverage
-.coverage.*
-coverage.xml
-*.cover
-.hypothesis/
-.pytest_cache/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# pyenv
-.python-version
-
-# pipenv
-Pipfile.lock
-
-# PEP 582
-__pypackages__/
-
-# Celery
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# pytype static type analyzer
-.pytype/
-
-# Cython debug symbols
-cython_debug/ 
+# ─── Legacy clutter never welcome on GitHub ───────────────────────────────
+legacy/**/__pycache__/
+legacy/**/node_modules/
+legacy/**/*.pkl
+legacy/**/captures.zip
+legacy/**/*.pptx
+legacy/**/*.pdf
+legacy/**/Mr*.jpg
+legacy/**/get-pip.py
+*.zip
+*.iso
+*.7z
