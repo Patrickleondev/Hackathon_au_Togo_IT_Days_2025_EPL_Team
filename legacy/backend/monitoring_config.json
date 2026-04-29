@@ -1,0 +1,91 @@
+{
+  "monitoring": {
+    "enabled": true,
+    "scan_interval": 5,
+    "real_time_monitoring": true,
+    "auto_response": true
+  },
+  "directories": {
+    "user_specified": [
+      "C:\\Users\\%USERNAME%\\Desktop",
+      "C:\\Users\\%USERNAME%\\Documents",
+      "C:\\Users\\%USERNAME%\\Downloads",
+      "C:\\Users\\%USERNAME%\\Pictures",
+      "C:\\Users\\%USERNAME%\\Videos"
+    ],
+    "system_critical": [
+      "C:\\Windows\\System32",
+      "C:\\Program Files",
+      "C:\\Program Files (x86)"
+    ],
+    "custom_paths": [
+      "D:\\Important_Files",
+      "E:\\Work_Documents"
+    ]
+  },
+  "file_types": {
+    "suspicious_extensions": [
+      ".exe", ".dll", ".bat", ".ps1", ".vbs", ".js", ".jar", ".scr", ".pif"
+    ],
+    "monitored_extensions": [
+      ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".pdf", ".txt", ".zip", ".rar"
+    ]
+  },
+  "process_monitoring": {
+    "enabled": true,
+    "scan_interval": 3,
+    "suspicious_patterns": [
+      "crypto", "encrypt", "decrypt", "ransom", "malware",
+      "trojan", "virus", "spyware", "keylogger", "backdoor"
+    ]
+  },
+  "registry_monitoring": {
+    "enabled": true,
+    "critical_keys": [
+      "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
+      "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce",
+      "HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
+      "HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce"
+    ]
+  },
+  "network_monitoring": {
+    "enabled": true,
+    "suspicious_ports": [22, 23, 3389, 5900, 4444, 8080],
+    "blocked_ips": [],
+    "allowed_ips": []
+  },
+  "ml_models": {
+    "hybrid_detector": {
+      "enabled": true,
+      "confidence_threshold": 0.7,
+      "model_path": "models/hybrid_detector.pkl"
+    },
+    "ultra_detector": {
+      "enabled": true,
+      "confidence_threshold": 0.6,
+      "model_path": "models/ultra_detector.pkl"
+    },
+    "ransomware_detector": {
+      "enabled": true,
+      "confidence_threshold": 0.8,
+      "model_path": "models/ransomware_detector.pkl"
+    }
+  },
+  "alerts": {
+    "email_notifications": false,
+    "desktop_notifications": true,
+    "log_level": "INFO",
+    "alert_threshold": 0.5
+  },
+  "quarantine": {
+    "enabled": true,
+    "auto_quarantine": true,
+    "quarantine_path": "quarantine/",
+    "max_quarantine_size": "1GB"
+  },
+  "language": {
+    "default": "fr",
+    "available": ["fr", "en", "es", "de"],
+    "auto_detect": true
+  }
+}

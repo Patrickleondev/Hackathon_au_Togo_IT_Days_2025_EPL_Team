@@ -225,3 +225,12 @@ Dossiers surveillés : Ajouter d'autres répertoires
 Ports suspects : Définir votre propre liste
 Fréquence : Monitoring toutes les 1-5 secondes
 Ce système offre une protection proactive en surveillant constamment votre environnement pour détecter les premiers signes d'activité malveillante, que ce soit au niveau des processus, des fichiers ou du réseau ! 🛡️
+
+
+
+✅ /api/analyze/file/ultra : Détection ultra-puissante
+✅ /api/scan : Scan système et réseau
+✅ /api/monitoring : Monitoring temps réel
+✅ /api/threats : Gestion des menaces
+✅ /api/quarantine
+/api/settings : Paramètres

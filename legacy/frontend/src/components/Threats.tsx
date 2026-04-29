@@ -31,6 +31,20 @@ const Threats: React.FC = () => {
     try {
       const response = await axios.get('/api/threats');
       const raw = response.data.threats || [];
+      // Ajouter menaces issues du moniteur fichiers
+      try {
+        const fileResp = await axios.get('/api/monitoring/files/threats');
+        const fileThreats = (fileResp.data?.data || []).map((t: any, idx: number) => ({
+          id: `filethreat_${idx}_${t.hash || t.file_path}`,
+          threat_type: 'file_suspicious',
+          severity: t.threat_score > 0.8 ? 'high' : t.threat_score > 0.5 ? 'medium' : 'low',
+          description: `${t.operation} • score ${Math.round((t.threat_score || 0)*100)}%`,
+          timestamp: t.timestamp,
+          file_path: t.file_path,
+          confidence: t.threat_score
+        }));
+        raw.unshift(...fileThreats);
+      } catch {}
       const normalized: Threat[] = raw.map((t: any) => ({
         id: t.id,
         threat_type: t.threat_type || t.type_translated || t.type || 'unknown',
