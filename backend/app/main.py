@@ -22,6 +22,19 @@ async def lifespan(app: FastAPI):
     log = get_logger(__name__)
     log.info("app.startup", env=settings.app_env, version=settings.app_version)
 
+    # Fail-fast on missing critical secrets. Empty defaults in config.py are
+    # intentional so misconfiguration is caught here rather than committed.
+    if not settings.secret_key:
+        raise RuntimeError(
+            "SECRET_KEY is not set. Generate one with `openssl rand -hex 32` "
+            "and put it in infra/.env."
+        )
+    if not settings.bootstrap_admin_password:
+        raise RuntimeError(
+            "BOOTSTRAP_ADMIN_PASSWORD is not set. Set it in infra/.env before "
+            "starting the API."
+        )
+
     # Storage dirs
     for d in (settings.storage_dir, settings.uploads_dir, settings.quarantine_dir,
               settings.models_dir, settings.rules_dir):

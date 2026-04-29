@@ -39,12 +39,15 @@ class Settings(BaseSettings):
     )
 
     # ─── Security ─────────────────────────────────────────────────────────
-    secret_key: str = "change-me-in-prod-please-use-openssl-rand-hex-32"
+    # SECRET_KEY and BOOTSTRAP_ADMIN_PASSWORD MUST be supplied via env vars.
+    # Empty defaults are intentional so misconfiguration is caught at startup
+    # (see app.main lifespan) and so no plausible-looking value is committed.
+    secret_key: str = ""
     jwt_algorithm: str = "HS256"
     jwt_access_ttl_minutes: int = 60
     jwt_agent_ttl_days: int = 30
     bootstrap_admin_email: str = "admin@guardian.local"
-    bootstrap_admin_password: str = "change-me-on-first-login"
+    bootstrap_admin_password: str = ""
     # Pre-shared secret required by /agents/enroll. If empty/None, enrollment is rejected
     # in non-dev environments. In dev it falls back to allowing enrollment with a warning.
     agent_enrollment_secret: str | None = None
