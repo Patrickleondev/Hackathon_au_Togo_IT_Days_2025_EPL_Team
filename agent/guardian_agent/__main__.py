@@ -36,12 +36,13 @@ def _save_state(data: dict) -> None:
 
 
 def _load_state() -> dict:
-    if STATE_FILE.exists():
-        try:
-            return json.loads(STATE_FILE.read_text())
-        except Exception:
-            return {}
-    return {}
+    if not STATE_FILE.exists():
+        return {}
+    try:
+        return json.loads(STATE_FILE.read_text())
+    except (json.JSONDecodeError, OSError) as exc:
+        log.warning("failed to load state file %s: %s", STATE_FILE, exc)
+        return {}
 
 
 def cmd_enroll() -> int:
@@ -107,14 +108,13 @@ def cmd_run() -> int:
                 continue
             try:
                 suspicious, reason = is_suspicious(path)
-            except Exception:
+            except Exception as exc:
+                log.warning("heuristic check failed for %s: %s", path, exc)
                 continue
             if not suspicious:
                 continue
             try:
-                size = path.stat().st_size
-                if size > settings.upload_max_mb * 1024 * 1024:
-                    continue
+                # Size cap is already enforced inside is_suspicious(); we just upload.
                 result = api.upload_file(path)
                 log.info("uploaded %s (%s) → threat=%s severity=%s",
                          path, reason, result.get("is_threat"), result.get("severity"))

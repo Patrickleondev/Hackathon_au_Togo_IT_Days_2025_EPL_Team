@@ -41,7 +41,7 @@ fmt:
 
 lint:
 	cd backend && ruff check .
-	cd frontend && npm run lint || true
+	cd frontend && npm run lint
 
 clean:
 	find . -type d -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true

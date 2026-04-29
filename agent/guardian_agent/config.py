@@ -12,14 +12,15 @@ class AgentSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        env_prefix="RG_",
+        env_prefix="GUARDIAN_",
         extra="ignore",
     )
 
     backend_url: str = "http://localhost:8000"
     api_prefix: str = "/api"
-    token: str = ""           # filled in after enrollment
-    agent_id: str = ""        # filled in after enrollment
+    token: str = ""               # filled in after enrollment
+    agent_id: str = ""            # filled in after enrollment
+    enrollment_secret: str = ""   # required by the backend's /agents/enroll
 
     state_dir: Path = Path.home() / ".guardian-agent"
 

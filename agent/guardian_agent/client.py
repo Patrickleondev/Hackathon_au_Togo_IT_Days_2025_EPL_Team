@@ -28,8 +28,11 @@ def enroll(hostname: str, os_name: str, os_version: str, agent_version: str) -> 
         "os_version": os_version,
         "agent_version": agent_version,
     }
+    headers = _headers()
+    if settings.enrollment_secret:
+        headers["X-Enrollment-Secret"] = settings.enrollment_secret
     with httpx.Client(timeout=15) as c:
-        r = c.post(_url("/agents/enroll"), json=payload, headers=_headers())
+        r = c.post(_url("/agents/enroll"), json=payload, headers=headers)
         r.raise_for_status()
         return r.json()
 

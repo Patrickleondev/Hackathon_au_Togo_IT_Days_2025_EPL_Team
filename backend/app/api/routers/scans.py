@@ -52,6 +52,7 @@ def _run_scan(scan_id: str) -> None:
         detector = get_detector()
         files_scanned = 0
         threats_found = 0
+        max_files = settings.scan_max_files
         for root in _safe_targets(scan.target_paths):
             if not root.exists():
                 continue
@@ -59,7 +60,7 @@ def _run_scan(scan_id: str) -> None:
                 if not path.is_file():
                     continue
                 files_scanned += 1
-                if files_scanned > 5000:
+                if files_scanned > max_files:
                     break
                 result = detector.analyze_path(path)
                 if result.is_threat:
@@ -70,7 +71,7 @@ def _run_scan(scan_id: str) -> None:
                         detection_source=f"scan:{scan.scan_type}",
                     )
                     threats_found += 1
-            if files_scanned > 5000:
+            if files_scanned > max_files:
                 break
 
         scan.files_scanned = files_scanned

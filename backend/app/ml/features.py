@@ -19,6 +19,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from app.core.config import settings
+
 # Magic bytes -> canonical extension
 MAGIC_TABLE: dict[bytes, str] = {
     b"\x4d\x5a": ".exe",
@@ -66,7 +68,9 @@ SUSPICIOUS_PATTERNS: dict[str, re.Pattern[bytes]] = {
     "btc_wallet": re.compile(rb"\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b|\bbc1[ac-hj-np-z02-9]{6,87}\b"),
 }
 
-MAX_READ_BYTES = 4 * 1024 * 1024  # 4 MB feature window
+MAX_READ_BYTES = settings.feature_max_read_bytes  # default 4 MiB feature window
+_ENTROPY_BLOCK = settings.feature_entropy_block_bytes  # default 64 KiB
+_ENTROPY_THRESHOLD = settings.feature_entropy_threshold  # default 7.5
 
 
 @dataclass
@@ -172,11 +176,10 @@ def extract_features(file_path: str | os.PathLike) -> FileFeatures:
     feats.suspicious_ext_score = SUSPICIOUS_EXT_SCORES.get(feats.file_ext, 0.0)
     feats.is_text = _looks_like_text(data[: 4 * 1024])
 
-    # Block-level entropy: scan 64 KB blocks; flag if any > 7.5
+    # Block-level entropy: scan _ENTROPY_BLOCK chunks within the first MiB.
     if data:
-        block = 64 * 1024
-        for i in range(0, min(len(data), 1024 * 1024), block):
-            if _shannon_entropy(data[i : i + block]) > 7.5:
+        for i in range(0, min(len(data), 1024 * 1024), _ENTROPY_BLOCK):
+            if _shannon_entropy(data[i : i + _ENTROPY_BLOCK]) > _ENTROPY_THRESHOLD:
                 feats.has_high_entropy_block = True
                 break
 

@@ -45,9 +45,14 @@ class Settings(BaseSettings):
     jwt_agent_ttl_days: int = 30
     bootstrap_admin_email: str = "admin@guardian.local"
     bootstrap_admin_password: str = "change-me-on-first-login"
+    # Pre-shared secret required by /agents/enroll. If empty/None, enrollment is rejected
+    # in non-dev environments. In dev it falls back to allowing enrollment with a warning.
+    agent_enrollment_secret: str | None = None
 
-    # ─── Database ─────────────────────────────────────────────────────────
-    database_url: str = "postgresql+psycopg://guardian:guardian@db:5432/guardian"
+    # ─── Database ───────────────────────────────────────────────────────────
+    # Must be supplied via DATABASE_URL env var. The default below is a placeholder
+    # that will FAIL to connect, on purpose, so that misconfiguration is caught early.
+    database_url: str = "postgresql+psycopg://CHANGE_ME@db:5432/CHANGE_ME"
 
     # ─── Redis / queue ────────────────────────────────────────────────────
     redis_url: str = "redis://redis:6379/0"
@@ -64,7 +69,17 @@ class Settings(BaseSettings):
     threshold_low: float = 0.40
     threshold_medium: float = 0.65
     threshold_high: float = 0.85
+    # ─── Detector internals (tunable) ──────────────────────────────────────────
+    # Bytes read from a file when computing entropy / signature features.
+    feature_max_read_bytes: int = 4 * 1024 * 1024  # 4 MiB
+    # Block size used by the chunked entropy estimator.
+    feature_entropy_block_bytes: int = 64 * 1024  # 64 KiB
+    # Shannon-entropy threshold above which a payload is considered "high-entropy".
+    feature_entropy_threshold: float = 7.5
 
+    # ─── Scans ────────────────────────────────────────────────────────────────
+    # Hard cap on the number of files inspected during a single directory scan.
+    scan_max_files: int = 5000
     # ─── Logging ──────────────────────────────────────────────────────────
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 

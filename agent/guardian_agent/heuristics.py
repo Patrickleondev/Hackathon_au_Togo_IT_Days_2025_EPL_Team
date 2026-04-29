@@ -7,6 +7,8 @@ import re
 from collections import Counter
 from pathlib import Path
 
+from guardian_agent.config import settings
+
 SUSPICIOUS_EXTS = {
     ".exe", ".dll", ".bat", ".cmd", ".ps1", ".vbs", ".js", ".scr",
     ".pif", ".com", ".hta", ".lnk", ".msi", ".wsf", ".jar",
@@ -20,6 +22,13 @@ PATTERNS = [
     re.compile(rb"(?i)readme[_\- ]decrypt"),
     re.compile(rb"(?i)powershell.*(-enc|-encodedcommand|frombase64string)"),
 ]
+
+# How much of a file we sample for entropy + pattern matching.
+_SAMPLE_BYTES = 512 * 1024
+# Entropy threshold above which a file is considered packed/encrypted.
+_ENTROPY_THRESHOLD = 7.5
+# Below this size, high entropy is meaningless (small archives etc).
+_MIN_ENTROPY_SIZE = 64 * 1024
 
 
 def _entropy(b: bytes) -> float:
@@ -36,7 +45,8 @@ def is_suspicious(path: Path) -> tuple[bool, str]:
         size = path.stat().st_size
     except OSError:
         return False, "unreadable"
-    if size == 0 or size > 50 * 1024 * 1024:
+    max_size = settings.upload_max_mb * 1024 * 1024
+    if size == 0 or size > max_size:
         return False, "size"
 
     ext = path.suffix.lower()
@@ -45,11 +55,11 @@ def is_suspicious(path: Path) -> tuple[bool, str]:
 
     try:
         with path.open("rb") as f:
-            data = f.read(512 * 1024)
+            data = f.read(_SAMPLE_BYTES)
     except OSError:
         return False, "unreadable"
 
-    if _entropy(data) > 7.5 and size > 64 * 1024:
+    if _entropy(data) > _ENTROPY_THRESHOLD and size > _MIN_ENTROPY_SIZE:
         return True, "high_entropy"
 
     for p in PATTERNS:
@@ -57,3 +67,4 @@ def is_suspicious(path: Path) -> tuple[bool, str]:
             return True, f"pattern:{p.pattern[:30]!r}"
 
     return False, "clean"
+
