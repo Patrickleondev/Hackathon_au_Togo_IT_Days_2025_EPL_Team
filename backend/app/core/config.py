@@ -112,6 +112,25 @@ class Settings(BaseSettings):
     # ─── Logging ──────────────────────────────────────────────────────────
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
+    # ─── Assistant / chatbot (LLM bridge) ─────────────────────────────────
+    # Provider for the public /api/chat endpoint. ``none`` = answer only from
+    # the local FAQ knowledge base (zero outbound calls, default).
+    llm_provider: Literal[
+        "none", "openai", "anthropic", "mistral", "openrouter", "ollama"
+    ] = "none"
+    # API key for the selected provider (not needed for ``ollama`` / ``none``).
+    llm_api_key: str = ""
+    # Override the model id — empty string lets the provider layer pick a sane default.
+    llm_model: str = ""
+    # Override the HTTP base URL (useful for self-hosted Ollama or proxies).
+    llm_base_url: str = ""
+    # Output cap — keeps cost predictable.
+    llm_max_tokens: int = 512
+    # Per-request timeout when calling the upstream LLM.
+    llm_timeout_seconds: float = 20.0
+    # Soft per-IP rate limit on /api/chat (requests / minute). 0 = disabled.
+    chat_rate_per_minute: int = 30
+
 
 @lru_cache
 def get_settings() -> Settings:

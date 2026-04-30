@@ -17,7 +17,11 @@
     "recharts": "^2.13.3",
     "lucide-react": "^0.468.0",
     "framer-motion": "^11.15.0",
-    "clsx": "^2.1.1"
+    "clsx": "^2.1.1",
+    "i18next": "^23.16.5",
+    "i18next-browser-languagedetector": "^8.0.2",
+    "react-i18next": "^15.2.0",
+    "react-markdown": "^9.0.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.18",

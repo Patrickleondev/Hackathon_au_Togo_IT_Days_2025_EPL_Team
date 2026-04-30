@@ -12,6 +12,7 @@ from app.api.routers import (
     agents,
     analyze,
     auth,
+    chat,
     eradication,
     intel,
     network,
@@ -106,6 +107,7 @@ def create_app() -> FastAPI:
     app.include_router(eradication.router, prefix=api)
     app.include_router(intel.router, prefix=api)
     app.include_router(network.router, prefix=api)
+    app.include_router(chat.router, prefix=api)
 
     @app.get("/")
     def root() -> dict:

@@ -137,3 +137,51 @@ export const Scans = {
     return (await api.get(`/scans/${id}`)).data
   },
 }
+
+// ─── Assistant / chatbot ──────────────────────────────────────────────────
+export interface RelatedFAQ {
+  id: string
+  category: string
+  question: string
+  answer: string
+  score?: number | null
+}
+
+export interface ChatReply {
+  text: string
+  lang: 'fr' | 'en'
+  source: 'kb' | 'llm' | 'fallback'
+  provider?: string | null
+  confidence: number
+  related: RelatedFAQ[]
+}
+
+export interface FAQItem {
+  id: string
+  category: string
+  question: string
+  answer: string
+}
+
+export interface AssistantProviderInfo {
+  configured: boolean
+  provider: string
+  model?: string | null
+}
+
+// Public chat endpoints — auth-free, so we bypass the bearer interceptor by
+// using a bare axios call against the same base URL.
+export const Assistant = {
+  async send(message: string, lang: 'fr' | 'en'): Promise<ChatReply> {
+    return (await api.post('/chat', { message, lang })).data
+  },
+  async faq(lang: 'fr' | 'en'): Promise<FAQItem[]> {
+    return (await api.get(`/chat/faq?lang=${lang}`)).data
+  },
+  async suggestions(lang: 'fr' | 'en'): Promise<string[]> {
+    return (await api.get(`/chat/suggestions?lang=${lang}`)).data
+  },
+  async provider(): Promise<AssistantProviderInfo> {
+    return (await api.get('/chat/provider')).data
+  },
+}

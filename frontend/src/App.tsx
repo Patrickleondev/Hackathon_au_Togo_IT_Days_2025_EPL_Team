@@ -14,6 +14,7 @@ import Features from './pages/public/Features'
 import Architecture from './pages/public/Architecture'
 import Demo from './pages/public/Demo'
 import Contact from './pages/public/Contact'
+import FAQ from './pages/public/FAQ'
 import { getToken } from './api/client'
 
 function Protected({ children }: { children: JSX.Element }) {
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="features" element={<Features />} />
         <Route path="architecture" element={<Architecture />} />
         <Route path="demo" element={<Demo />} />
+        <Route path="faq" element={<FAQ />} />
         <Route path="contact" element={<Contact />} />
       </Route>
 

@@ -1,0 +1,67 @@
+{
+  "nav": {
+    "home": "Accueil",
+    "features": "Fonctionnalités",
+    "architecture": "Architecture",
+    "demo": "Démo",
+    "faq": "FAQ",
+    "about": "À propos",
+    "contact": "Contact",
+    "console": "Console SOC",
+    "menu": "menu"
+  },
+  "footer": {
+    "tagline": "Protection IA contre les ransomwares, conçue au Togo pour l'Afrique de l'Ouest.",
+    "product": "Produit",
+    "team": "Équipe EPL",
+    "school": "École Polytechnique de Lomé",
+    "hackathon": "Hackathon Togo IT Days 2025",
+    "cert": "CERT-TG : (+228) 70 54 93 25",
+    "contactUs": "Nous contacter",
+    "copyright": "© 2025 EPL Team — GuardIAn. Licence Apache-2.0.",
+    "build": "Build {{date}}",
+    "sourceCode": "Code source"
+  },
+  "lang": {
+    "switch": "Changer de langue",
+    "fr": "Français",
+    "en": "English"
+  },
+  "chatbot": {
+    "title": "Assistant GuardIAn",
+    "open": "Ouvrir l'assistant",
+    "close": "Fermer l'assistant",
+    "placeholder": "Posez votre question…",
+    "send": "Envoyer",
+    "thinking": "L'assistant réfléchit…",
+    "errorRate": "Trop de messages — patientez quelques instants.",
+    "errorGeneric": "Une erreur est survenue. Réessayez dans un instant.",
+    "welcome": "Bonjour ! Je suis l'assistant GuardIAn. Je peux répondre à vos questions sur le projet, son installation et son fonctionnement.",
+    "suggestions": "Suggestions",
+    "poweredKB": "Réponse basée sur la documentation locale",
+    "poweredLLM": "Réponse générée par IA ({{provider}})",
+    "poweredFallback": "Aucune correspondance — voir la FAQ",
+    "related": "Voir aussi",
+    "you": "Vous",
+    "assistant": "Assistant",
+    "newChat": "Nouvelle conversation",
+    "disclaimer": "Conversations non enregistrées. Les réponses peuvent être imparfaites — vérifiez toujours dans la documentation."
+  },
+  "faq": {
+    "title": "Foire aux questions",
+    "subtitle": "Tout ce que vous voulez savoir sur GuardIAn — détection, déploiement, équipe.",
+    "searchPlaceholder": "Rechercher dans la FAQ…",
+    "noResults": "Aucun résultat. Essayez d'autres mots-clés ou utilisez le chatbot en bas à droite.",
+    "categories": {
+      "all": "Tout",
+      "general": "Général",
+      "detection": "Détection",
+      "deployment": "Déploiement",
+      "ml": "IA & ML",
+      "team": "Équipe"
+    },
+    "askAssistant": "Une autre question ? Demandez à l'assistant",
+    "loading": "Chargement de la FAQ…",
+    "error": "Impossible de charger la FAQ. Vérifiez votre connexion."
+  }
+}
