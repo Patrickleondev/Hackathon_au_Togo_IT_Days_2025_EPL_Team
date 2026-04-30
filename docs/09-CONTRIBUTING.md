@@ -57,7 +57,7 @@ docs(install): document offline training
 ## Security disclosures
 
 Do not open public issues for security flaws — email
-`security@guardian.local` (placeholder). Provide:
+`gkpl0010@gmail.com` (placeholder). Provide:
 
 - Affected version
 - Reproduction steps
