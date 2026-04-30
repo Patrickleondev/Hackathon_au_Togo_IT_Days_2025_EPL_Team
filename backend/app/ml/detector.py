@@ -113,14 +113,19 @@ class UnifiedDetector:
     # ─── Public analysis ─────────────────────────────────────────────────
     def analyze_path(self, file_path: str | os.PathLike) -> DetectionResult:
         feats = extract_features(file_path)
-        return self._score(feats)
+        return self._score(feats, path=str(file_path))
 
     def analyze_bytes(self, name: str, data: bytes) -> DetectionResult:
         feats = extract_features_from_bytes(name, data)
         return self._score(feats, raw=data)
 
     # ─── Internals ───────────────────────────────────────────────────────
-    def _score(self, feats: FileFeatures, raw: bytes | None = None) -> DetectionResult:
+    def _score(
+        self,
+        feats: FileFeatures,
+        raw: bytes | None = None,
+        path: str | None = None,
+    ) -> DetectionResult:
         if feats.error:
             return DetectionResult(
                 is_threat=False,
@@ -157,16 +162,49 @@ class UnifiedDetector:
                 ),
             )
 
+        # Static-V2 — deep static analysis (multi-hash + PE deep + packers).
+        # Then check the local TI DB for fuzzy / imphash matches.
+        static_v2 = _static_v2_run(raw=raw, path=path)
+        fuzzy_hit = _ti_fuzzy_lookup(static_v2) if static_v2 else None
+        if fuzzy_hit is not None:
+            return DetectionResult(
+                is_threat=True,
+                confidence=max(0.92, fuzzy_hit["confidence"]),
+                severity="critical",
+                threat_type=fuzzy_hit.get("family") or "known_malware_variant",
+                score_heuristic=self._heuristic_score(feats),
+                score_ml=None,
+                score_yara=None,
+                indicators={
+                    **feats.to_dict(),
+                    "static_v2": static_v2.to_dict() if static_v2 else None,
+                    "ti_fuzzy": fuzzy_hit,
+                },
+                matched_rules=[f"ti_fuzzy:{fuzzy_hit['kind']}:{fuzzy_hit['source']}"],
+                sha256=feats.sha256,
+                description=(
+                    f"Variant of known malware ({fuzzy_hit['kind']} match, "
+                    f"score={fuzzy_hit['score']}, family={fuzzy_hit.get('family') or 'unknown'})"
+                ),
+            )
+
         h = self._heuristic_score(feats)
         m = self._ml_score(feats)
         y, matched = self._yara_score(feats, raw)
 
+        # Static-V2 contributes a structural score (APT-import score + packer + WX section).
+        s_static = _static_v2_score(static_v2)
+
         # Weighted aggregation. ML and YARA only contribute when available.
-        weights: list[tuple[float, float]] = [(0.45 if (m is not None or y is not None) else 1.0, h)]
+        weights: list[tuple[float, float]] = [
+            (0.40 if (m is not None or y is not None) else 0.85, h)
+        ]
         if m is not None:
-            weights.append((0.35, m))
+            weights.append((0.30, m))
         if y is not None:
-            weights.append((0.20, y))
+            weights.append((0.15, y))
+        if s_static is not None:
+            weights.append((0.15, s_static))
         total_w = sum(w for w, _ in weights)
         confidence = sum(w * s for w, s in weights) / total_w
 
@@ -179,6 +217,18 @@ class UnifiedDetector:
         threat_type = self._classify(feats, matched)
         description = self._describe(feats, matched, severity)
 
+        # Augment indicators with static-v2 + capability tags.
+        indicators: dict[str, Any] = feats.to_dict()
+        matched_rules = list(matched)
+        if static_v2 is not None:
+            indicators["static_v2"] = static_v2.to_dict()
+            if static_v2.packer:
+                matched_rules.append(f"packer:{static_v2.packer}")
+            for cap in static_v2.capabilities:
+                # ATT&CK technique IDs become rule-style tags.
+                if cap.startswith("T") and "." in cap.split(" ", 1)[0] or cap.startswith("T1"):
+                    matched_rules.append(f"attack:{cap.split(' ', 1)[0]}")
+
         return DetectionResult(
             is_threat=is_threat,
             confidence=confidence,
@@ -187,8 +237,8 @@ class UnifiedDetector:
             score_heuristic=h,
             score_ml=m,
             score_yara=y,
-            indicators=feats.to_dict(),
-            matched_rules=matched,
+            indicators=indicators,
+            matched_rules=matched_rules,
             sha256=feats.sha256,
             description=description,
         )
@@ -337,4 +387,101 @@ def _ti_lookup_hash(sha256: str) -> dict[str, Any] | None:
             }
     except Exception as exc:  # noqa: BLE001 — never break scoring
         log.warning("ti.lookup_failed", error=str(exc))
+        return None
+
+
+# ─── Static-V2 integration (Phase B) ─────────────────────────────────────
+def _static_v2_run(
+    raw: bytes | None = None,
+    path: str | None = None,
+):  # -> StaticV2Result | None
+    """Run Static-V2 deep parsing. Always returns ``None`` on any failure."""
+    try:
+        from app.ml.static_v2 import analyze_bytes, analyze_path
+
+        if raw is not None:
+            return analyze_bytes(raw)
+        if path is not None:
+            return analyze_path(path)
+    except Exception as exc:  # noqa: BLE001 — must never break scoring
+        log.warning("static_v2.failed", error=str(exc))
+    return None
+
+
+def _static_v2_score(static_v2) -> float | None:
+    """Convert Static-V2 indicators into a 0..1 score for the meta-aggregator."""
+    if static_v2 is None or static_v2.parser_error == "file_not_found":
+        return None
+    score = 0.0
+    # APT-import score is already normalized 0..1.
+    score += 0.6 * float(static_v2.apt_score)
+    if static_v2.packer:
+        score += 0.25
+    # Writable + executable section is a heavy red flag.
+    if any(":WX" in s for s in static_v2.suspicious_sections):
+        score += 0.20
+    # Unsigned + missing Rich header on a PE = unusual.
+    if static_v2.is_pe and not static_v2.has_signature:
+        score += 0.05
+    if static_v2.is_pe and not static_v2.has_rich_header:
+        score += 0.05
+    if static_v2.has_tls_callbacks:
+        score += 0.10
+    return min(score, 1.0)
+
+
+def _ti_fuzzy_lookup(static_v2) -> dict[str, Any] | None:
+    """Look up imphash / ssdeep / tlsh in the local TI DB.
+
+    The detector calls this **after** the exact SHA-256 lookup misses.
+    Returns the strongest fuzzy match or ``None``. Wrapped in a broad
+    except so TI failures don't break detection.
+    """
+    if static_v2 is None:
+        return None
+    if not (static_v2.imphash or static_v2.ssdeep or static_v2.tlsh):
+        return None
+    try:
+        from app.db.session import SessionLocal
+        from app.intel.service import IntelService
+
+        with SessionLocal() as db:
+            svc = IntelService(db)
+            # 1. imphash — exact match, very high precision.
+            if static_v2.imphash:
+                imp_rows = svc.lookup_imphash(static_v2.imphash)
+                if imp_rows:
+                    row = imp_rows[0]
+                    return {
+                        "kind": "imphash",
+                        "score": 100,
+                        "source": row.source,
+                        "family": row.family,
+                        "confidence": float(row.confidence),
+                        "matched_sha256": row.sha256,
+                    }
+            # 2. ssdeep / tlsh fuzzy.
+            fuzzy = svc.lookup_fuzzy(
+                ssdeep_value=static_v2.ssdeep,
+                tlsh_value=static_v2.tlsh,
+            )
+            if not fuzzy:
+                return None
+            # Keep the strongest hit. ssdeep score is 0-100 (higher better),
+            # tlsh distance is lower-better — normalize to a comparable key.
+            def _key(item: tuple) -> int:
+                _row, kind, score = item
+                return score if kind == "ssdeep" else (200 - score)
+
+            row, kind, score = max(fuzzy, key=_key)
+            return {
+                "kind": kind,
+                "score": int(score),
+                "source": row.source,
+                "family": row.family,
+                "confidence": float(row.confidence),
+                "matched_sha256": row.sha256,
+            }
+    except Exception as exc:  # noqa: BLE001
+        log.warning("ti.fuzzy_lookup_failed", error=str(exc))
         return None

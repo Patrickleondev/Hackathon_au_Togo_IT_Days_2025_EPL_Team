@@ -60,6 +60,60 @@ class IntelService:
             select(IntelHash).where(IntelHash.sha256 == sha)
         ).scalar_one_or_none()
 
+    # ── Fuzzy / structural hash lookups (Phase B) ─────────────────────────
+    def lookup_imphash(self, imphash: str) -> list[IntelHash]:
+        """Exact imphash match — same import table = same code reuse."""
+        h = (imphash or "").lower().strip()
+        if not h:
+            return []
+        return list(self.db.execute(
+            select(IntelHash).where(IntelHash.imphash == h)
+        ).scalars())
+
+    def lookup_fuzzy(
+        self,
+        ssdeep_value: str | None = None,
+        tlsh_value: str | None = None,
+        ssdeep_min_similarity: int = 70,
+        tlsh_max_distance: int = 70,
+        max_candidates: int = 2000,
+    ) -> list[tuple[IntelHash, str, int]]:
+        """Return ``(row, kind, score)`` tuples for similar samples.
+
+        ``kind`` is ``"ssdeep"`` (score=similarity 0-100) or ``"tlsh"``
+        (score=distance — lower is closer). The DB has no native ssdeep/tlsh
+        index, so we cap the candidate set at ``max_candidates`` rows and
+        compare in Python. Good enough until corpus passes ~100k samples.
+        """
+        # Local import — keeps app.intel free of native dep coupling.
+        from app.ml.static_v2 import ssdeep_compare, tlsh_distance
+
+        hits: list[tuple[IntelHash, str, int]] = []
+
+        if ssdeep_value:
+            rows = list(self.db.execute(
+                select(IntelHash)
+                .where(IntelHash.ssdeep.is_not(None))
+                .limit(max_candidates)
+            ).scalars())
+            for row in rows:
+                sim = ssdeep_compare(ssdeep_value, row.ssdeep or "")
+                if sim >= ssdeep_min_similarity:
+                    hits.append((row, "ssdeep", sim))
+
+        if tlsh_value:
+            rows = list(self.db.execute(
+                select(IntelHash)
+                .where(IntelHash.tlsh.is_not(None))
+                .limit(max_candidates)
+            ).scalars())
+            for row in rows:
+                d = tlsh_distance(tlsh_value, row.tlsh or "")
+                if d is not None and d <= tlsh_max_distance:
+                    hits.append((row, "tlsh", d))
+
+        return hits
+
     # ── Indicator ─────────────────────────────────────────────────────────
     def lookup_ip(self, ip: str) -> list[IntelIndicator]:
         return list(self.db.execute(

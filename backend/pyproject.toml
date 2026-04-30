@@ -40,6 +40,12 @@ dependencies = [
     "python-magic==0.4.27; platform_system != 'Windows'",
     "python-magic-bin==0.4.14; platform_system == 'Windows'",
 
+    # Static-V2: deep PE parsing + fuzzy hashes (Phase B)
+    # ssdeep / python-tlsh need libfuzzy / libtlsh — installed in Dockerfile.
+    # Made optional via `static_v2` extras for local dev convenience.
+    "pefile==2024.8.26",
+    "python-tlsh==4.5.0; platform_system != 'Windows'",
+
     # Infra
     "httpx==0.28.1",
     "tenacity==9.0.0",
@@ -56,6 +62,11 @@ dev = [
     "ruff==0.8.4",
     "mypy==1.13.0",
     "httpx==0.28.1",
+]
+# Optional ssdeep — needs libfuzzy-dev (Linux) / fuzzy.dll (Windows).
+# Install with: pip install -e ".[ssdeep]"
+ssdeep = [
+    "ssdeep==3.4; platform_system != 'Windows'",
 ]
 
 [tool.ruff]

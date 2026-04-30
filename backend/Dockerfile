@@ -6,12 +6,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# System deps for psycopg + yara
+# System deps for psycopg + yara + Static-V2 (libfuzzy for ssdeep, libtlsh for tlsh)
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         libpq-dev \
         libyara-dev \
         libmagic1 \
+        libfuzzy-dev \
+        libtlsh-dev \
         curl \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/*
@@ -45,7 +47,10 @@ RUN pip install --upgrade pip \
         "httpx==0.28.1" \
         "apscheduler==3.10.4" \
         "tenacity==9.0.0" \
-        "python-dateutil==2.9.0.post0"
+        "python-dateutil==2.9.0.post0" \
+        "pefile==2024.8.26" \
+        "python-tlsh==4.5.0" \
+        "ssdeep==3.4"
 
 # ---- app code ----
 COPY app ./app
