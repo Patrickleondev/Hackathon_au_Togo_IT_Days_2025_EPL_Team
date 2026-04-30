@@ -21,7 +21,9 @@
 | 09 | [FAQ & Glossaire](09-faq-glossaire.md) | Tout le monde | référence |
 | 10 | [Roadmap (Phases C → F)](10-roadmap.md) | Architectes | 15 min |
 | 11 | [Réseau-V2 (Phase C)](11-network-v2.md) | Devs / SOC | 20 min |
+| 12 | [Stack IA complète — couche par couche](12-ia-stack-complete.md) | **Tout le monde** (utilisateurs, contributeurs, investisseurs) | 30 min |
 | -- | [Sources & lectures](sources.md) | Approfondissement | référence |
+| -- | [Prérequis de déploiement (machines + terminaux)](../PREREQUISITES.md) | Ops / DevOps / nouveaux contributeurs | 15 min |
 
 ---
 
