@@ -1,33 +1,50 @@
 # 10 — Roadmap (Phases C → F)
 
-> Phases A et B sont **livrées**. Voici ce qui suit, dans l'ordre recommandé.
+> Phases A, B et C sont **livrées**. Voici ce qui suit, dans l'ordre recommandé.
 
-## Phase C — Réseau-V2 (~500 lignes)
+## Phase C — Réseau-V2 — ✅ Livrée
 
 **But** : enrichir la détection avec les signaux réseau modernes.
 
-### Modules cibles
+> Détails complets : [11-network-v2.md](11-network-v2.md). Résumé ci-dessous.
 
-| Module | Rôle | Lib clé |
-|--------|------|---------|
-| **JA3 / JA4** | Fingerprint TLS client/server (User-Agent du chiffrement) | `pyshark` + `ja4-py` |
-| **DGA detector** | LSTM char-level pré-entraîné (DGA Archive) | PyTorch + ONNX |
-| **Beaconing detector** | FFT sur inter-arrival times — fenêtre glissante 1 h | `scipy.fft` |
-| **Suricata ingest** | Parse `fast.log` et `eve.json` → DB | tail + parser custom |
-| **Zeek ingest** | Parse `conn.log`, `ssl.log`, `dns.log` | parser TSV |
-| **Live TI match** | Sur chaque DNS/connect → query `intel_indicators` | déjà en place côté DB |
+### Modules livrés
 
-### Nouveaux endpoints
+| Module | Rôle | Implémentation |
+|--------|------|----------------|
+| **JA3 / JA4** | Lookup MD5 contre liste built-in + DB `ja3_fingerprints` | `app/network/ja3.py` |
+| **DGA detector** | 6 features lexicales (entropie, bigrammes EN, voyelles, runs, chiffres, longueur) — pas de torch en V1 | `app/network/dga.py` |
+| **Beaconing detector** | Statistique de Rayleigh (RITA-style) sur 64 candidats log-spaced + golden-section refine | `app/network/beaconing.py` |
+| **Suricata ingest** | Parser `eve.json` (flow / dns / http / tls / alert) | `app/network/ingest.py` |
+| **Zeek ingest** | Parsers `conn.log` TSV + `dns.log` / `ssl.log` JSON | `app/network/ingest.py` |
+| **Live TI match** | À l'ingest : `IntelService.lookup_ip` / `lookup_domain` | `app/network/service.py` |
 
-- `POST /api/network/events` (depuis Suricata/Zeek sidecar)
-- `GET /api/network/beacons?agent_id=...`
-- `GET /api/network/dga?domain=...`
+### Endpoints livrés
 
-### Source dataset
+- `POST /api/network/events` — bulk (5000 max), auth agent
+- `POST /api/network/events/raw` — lignes brutes Suricata / Zeek
+- `GET  /api/network/stats` — comptes par source / 24 h
+- `GET  /api/network/dga?domain=…` — score à la volée
+- `GET  /api/network/beacons?min_score=…` — top canaux périodiques
+- `POST /api/network/beacons/recompute` — admin uniquement
+- `GET  /api/network/ja3/{fingerprint}` — DB + fallback built-in
 
-- **DGA Archive** (Andrey Abakumov) — https://data.netlab.360.com/dga/
-- **JA3 fingerprints** (Salesforce) — https://github.com/salesforce/ja3
-- **JA4** spec — https://github.com/FoxIO-LLC/ja4
+### DB (3 nouvelles tables)
+
+- `network_events` — index sur ts, src/dst_ip, dst_port, domain, sni, ja3, ja4, risk
+- `network_beacons` — résultats agrégés (period_s, score, jitter, verdict)
+- `ja3_fingerprints` — fingerprints connus malveillants (Cobalt Strike, Empire, Trickbot, Emotet, Tor, Sliver à minima)
+
+### Tests
+
+20 tests unitaires sous [`backend/tests/test_network.py`](../../backend/tests/test_network.py) — DGA, beaconing (périodicité parfaite + Poisson + trace courte), JA3/JA4 (normalisation, lookup), parsers Suricata + Zeek. **20/20 passent**.
+
+### Phase C+ (étendue future, non bloquant)
+
+- Auto-import CSV SSLBL → `ja3_fingerprints` via TI scheduler
+- DGA LSTM char-level (déplacé en Phase E pour mutualiser le runtime ONNX)
+- Décodage JA3/JA4 côté backend sans Suricata (via `pyshark` + `ja4-py`)
+- Déploiement Suricata Docker compose (interface mirror)
 
 ---
 

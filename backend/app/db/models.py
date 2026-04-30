@@ -221,3 +221,78 @@ class IntelFeedRun(Base):
     updated: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     duration_ms: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
+# ─── Network-V2 (Phase C) ─────────────────────────────────────────────────
+class NetworkEvent(Base):
+    """Single network observation pushed by an agent / Suricata / Zeek.
+
+    Sized to be cheap (no full payload, no PCAP) — we only store the bits
+    we use for analytics and joins to TI.
+    """
+
+    __tablename__ = "network_events"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    agent_id: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("agents.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    src_ip: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    dst_ip: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    src_port: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    dst_port: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    proto: Mapped[str] = mapped_column(String(8), nullable=False)
+    bytes_in: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    bytes_out: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    domain: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    sni: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    http_host: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    http_uri: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    http_user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    ja3: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    ja4: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    suricata_alert: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    suricata_severity: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    risk: Mapped[float] = mapped_column(Float, default=0.0, nullable=False, index=True)
+    risk_factors: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    source: Mapped[str] = mapped_column(String(16), default="agent", nullable=False, index=True)
+
+
+class NetworkBeacon(Base):
+    """Detected periodic communication channel — running summary.
+
+    A row is created/updated by the periodic beaconing analyser per
+    ``(src_ip, dst_ip, dst_port)`` tuple it considers suspicious enough
+    (``score >= 0.65``).
+    """
+
+    __tablename__ = "network_beacons"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    src_ip: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    dst_ip: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    dst_port: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    n_events: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    duration_s: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    period_s: Mapped[float | None] = mapped_column(Float, nullable=True)
+    score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False, index=True)
+    jitter: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    verdict: Mapped[str] = mapped_column(String(32), default="unknown", nullable=False, index=True)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class JA3Fingerprint(Base):
+    """Known-bad JA3 / JA4 fingerprint loaded from feeds or seeded built-in."""
+
+    __tablename__ = "ja3_fingerprints"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    fingerprint: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    kind: Mapped[str] = mapped_column(String(8), default="ja3", nullable=False)
+    family: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    source: Mapped[str] = mapped_column(String(64), default="builtin", nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    added_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

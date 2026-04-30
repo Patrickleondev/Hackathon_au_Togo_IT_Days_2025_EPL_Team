@@ -20,7 +20,8 @@
 | 08 | [Installation pas à pas](08-installation-pas-a-pas.md) | Débutants | 20 min |
 | 09 | [FAQ & Glossaire](09-faq-glossaire.md) | Tout le monde | référence |
 | 10 | [Roadmap (Phases C → F)](10-roadmap.md) | Architectes | 15 min |
-| 11 | [Sources & lectures](sources.md) | Approfondissement | référence |
+| 11 | [Réseau-V2 (Phase C)](11-network-v2.md) | Devs / SOC | 20 min |
+| -- | [Sources & lectures](sources.md) | Approfondissement | référence |
 
 ---
 
@@ -58,7 +59,7 @@ GuardIAn est un **antivirus d'entreprise nouvelle génération** :
 |-------|-------------|--------|
 | **A** | Threat Intelligence auto-update (7 feeds, 6 h) | ✅ Livrée |
 | **B** | Static-V2 (multi-hash + PE deep + packers) | ✅ Livrée |
-| **C** | Réseau-V2 (JA3/JA4, DGA, beaconing, Suricata) | 🔜 Roadmap |
+| **C** | Réseau-V2 (JA3/JA4, DGA, beaconing, Suricata) | ✅ Livrée |
 | **D** | Comportemental APT (Sysmon, ATT&CK, canary, Sigma) | 🔜 Roadmap |
 | **E** | ML-V2 (EMBER, MalConv2, CodeBERT, ensembles) | 🔜 Roadmap |
 | **F** | MLOps (active learning, drift, registry signé) | 🔜 Roadmap |

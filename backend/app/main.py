@@ -8,7 +8,17 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import agents, analyze, auth, eradication, intel, scans, status, threats
+from app.api.routers import (
+    agents,
+    analyze,
+    auth,
+    eradication,
+    intel,
+    network,
+    scans,
+    status,
+    threats,
+)
 from app.core.config import settings
 from app.core.logging import configure_logging, get_logger
 from app.db import SessionLocal
@@ -46,6 +56,12 @@ async def lifespan(app: FastAPI):
     try:
         init_db(db)
         ensure_demo_agent(db)
+        # Seed built-in JA3 known-bad list (Phase C). Idempotent.
+        try:
+            from app.network.service import NetworkService
+            NetworkService(db).seed_builtin_ja3()
+        except Exception as exc:  # pragma: no cover - defensive
+            log.warning("network.seed_ja3.failed", error=str(exc))
     finally:
         db.close()
 
@@ -89,6 +105,7 @@ def create_app() -> FastAPI:
     app.include_router(analyze.router, prefix=api)
     app.include_router(eradication.router, prefix=api)
     app.include_router(intel.router, prefix=api)
+    app.include_router(network.router, prefix=api)
 
     @app.get("/")
     def root() -> dict:
