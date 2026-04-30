@@ -1,0 +1,67 @@
+{
+  "nav": {
+    "home": "Home",
+    "features": "Features",
+    "architecture": "Architecture",
+    "demo": "Demo",
+    "faq": "FAQ",
+    "about": "About",
+    "contact": "Contact",
+    "console": "SOC Console",
+    "menu": "menu"
+  },
+  "footer": {
+    "tagline": "AI-powered ransomware protection, built in Togo for West Africa.",
+    "product": "Product",
+    "team": "EPL Team",
+    "school": "École Polytechnique de Lomé",
+    "hackathon": "Togo IT Days 2025 Hackathon",
+    "cert": "CERT-TG: (+228) 70 54 93 25",
+    "contactUs": "Contact us",
+    "copyright": "© 2025 EPL Team — GuardIAn. Apache-2.0 license.",
+    "build": "Build {{date}}",
+    "sourceCode": "Source code"
+  },
+  "lang": {
+    "switch": "Switch language",
+    "fr": "Français",
+    "en": "English"
+  },
+  "chatbot": {
+    "title": "GuardIAn Assistant",
+    "open": "Open assistant",
+    "close": "Close assistant",
+    "placeholder": "Ask your question…",
+    "send": "Send",
+    "thinking": "Assistant is thinking…",
+    "errorRate": "Too many messages — please wait a moment.",
+    "errorGeneric": "Something went wrong. Try again in a moment.",
+    "welcome": "Hi! I'm the GuardIAn assistant. Ask me about the project, install or how it works.",
+    "suggestions": "Suggestions",
+    "poweredKB": "Answer from local documentation",
+    "poweredLLM": "AI-generated answer ({{provider}})",
+    "poweredFallback": "No match found — see the FAQ",
+    "related": "Related",
+    "you": "You",
+    "assistant": "Assistant",
+    "newChat": "New chat",
+    "disclaimer": "Conversations are not stored. Replies may be imperfect — always cross-check with the documentation."
+  },
+  "faq": {
+    "title": "Frequently Asked Questions",
+    "subtitle": "Everything you want to know about GuardIAn — detection, deployment, team.",
+    "searchPlaceholder": "Search the FAQ…",
+    "noResults": "No results. Try different keywords or use the chatbot at the bottom right.",
+    "categories": {
+      "all": "All",
+      "general": "General",
+      "detection": "Detection",
+      "deployment": "Deployment",
+      "ml": "AI & ML",
+      "team": "Team"
+    },
+    "askAssistant": "Another question? Ask the assistant",
+    "loading": "Loading FAQ…",
+    "error": "Unable to load the FAQ. Check your connection."
+  }
+}

@@ -1,0 +1,99 @@
+name: guardian-prod
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [internal]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks: [internal]
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    image: guardian/backend:prod
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    env_file: .env
+    environment:
+      APP_ENV: prod
+    volumes:
+      - guardian_data:/var/lib/guardian
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    image: guardian/backend:prod
+    restart: unless-stopped
+    depends_on:
+      backend: { condition: service_started }
+      redis: { condition: service_healthy }
+    env_file: .env
+    environment:
+      APP_ENV: prod
+    volumes:
+      - guardian_data:/var/lib/guardian
+    networks: [internal]
+    command: ["python", "-m", "app.workers"]
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      target: prod
+    image: guardian/frontend:prod
+    restart: unless-stopped
+    networks: [internal]
+
+  nginx:
+    build:
+      context: ./nginx
+    image: guardian/nginx:prod
+    restart: unless-stopped
+    depends_on: [backend, frontend]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/certs:/etc/nginx/certs:ro
+    networks: [internal, edge]
+
+volumes:
+  pgdata:
+  redisdata:
+  guardian_data:
+
+networks:
+  internal:
+    driver: bridge
+    internal: false
+  edge:
+    driver: bridge

@@ -1,0 +1,28 @@
+# GitGuardian configuration — GuardIAn
+# Docs: https://docs.gitguardian.com/ggshield-docs/reference/configuration
+
+version: 2
+
+# All real secrets are loaded from infra/.env (see infra/.env.example).
+# Code in this repo never embeds plausible credentials. The paths below are
+# either historical/frozen reference material or contain only structural
+# placeholders (variable names, env-var keys, doc snippets).
+paths-ignore:
+  # Frozen v1 codebase, retained for reference, not built or deployed.
+  - "legacy/**"
+  # Jupyter notebooks may include sample/demo string literals that look like
+  # credentials but are training data placeholders.
+  - "**/*.ipynb"
+  # Documentation only references env-var names, never values.
+  - "docs/**"
+
+# Detector-level allowlist for known-safe placeholder values.
+matches-ignore:
+  - name: "env template placeholder"
+    match: "REPLACE_ME_WITH_OUTPUT_OF_openssl_rand_hex_32"
+  - name: "env template placeholder"
+    match: "REPLACE_ME_BEFORE_RUNNING"
+  - name: "env template placeholder"
+    match: "REPLACE_ME_WITH_RANDOM"
+  - name: "db url placeholder"
+    match: "postgresql+psycopg://CHANGE_ME@db:5432/CHANGE_ME"
