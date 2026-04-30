@@ -29,7 +29,7 @@ flowchart LR
 
 ---
 
-## 🚀 Quick start (development, Linux/macOS/Windows + Docker Desktop)
+##  Quick start (development, Linux/macOS/Windows + Docker Desktop)
 
 ```bash
 git clone https://github.com/Patrickleondev/Hackathon_au_Togo_IT_Days_2025_EPL_Team.git
@@ -50,7 +50,7 @@ Default analyst credentials come from `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN
 
 ---
 
-## 📚 Documentation
+##  Documentation
 
 All detailed docs live under [`docs/`](docs/):
 
@@ -68,7 +68,7 @@ All detailed docs live under [`docs/`](docs/):
 
 ---
 
-## 🗂️ Repository layout
+##  Repository layout
 
 ```
 .
@@ -88,7 +88,7 @@ reference. **It is not built, not deployed, and not exposed.**
 
 ---
 
-## 🛡️ Security posture
+##  Security posture
 
 - **Local-only by default** — no telemetry leaves the operator's network.
 - **mTLS-ready** between agent and backend (see `docs/08-DEPLOYMENT.md`).
@@ -100,7 +100,7 @@ reference. **It is not built, not deployed, and not exposed.**
 
 ---
 
-## 📜 License
+##  License
 
 MIT — see [LICENSE](LICENSE).
 
