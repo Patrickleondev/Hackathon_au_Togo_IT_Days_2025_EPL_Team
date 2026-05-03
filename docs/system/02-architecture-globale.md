@@ -4,12 +4,12 @@
 
 GuardIAn suit une architecture **agent / serveur / data plane**, classique des EDR modernes :
 
-```
+```text
 ┌────────────────────────┐         ┌─────────────────────────────────┐
 │  Agents Windows        │         │  Backend (FastAPI)               │
 │   - Tray app           │ HTTPS   │   ┌──────────────────────────┐  │
 │   - Real-time scanner  ├────────►│   │ /api/agents (heartbeat)  │  │
-│   - Telemetry          │         │   │ /api/analyze             │  │
+│   - Telemetry          │         │   │ /api/analyze/file        │  │
 │   - File submission    │         │   │ /api/scans               │  │
 └────────────────────────┘         │   │ /api/threats             │  │
                                    │   │ /api/intel  (Phase A)    │  │
@@ -52,7 +52,7 @@ GuardIAn suit une architecture **agent / serveur / data plane**, classique des E
 ### 1. Backend FastAPI (`backend/app/`)
 
 | Module | Rôle |
-|--------|------|
+| --- | --- |
 | `app/main.py` | Bootstrap : routers, middleware, lifespan (DB init + scheduler) |
 | `app/api/routers/` | Endpoints REST (auth, agents, threats, scans, analyze, intel) |
 | `app/core/` | Config (Pydantic Settings), logging structuré, sécurité JWT |
@@ -79,18 +79,18 @@ GuardIAn suit une architecture **agent / serveur / data plane**, classique des E
 ### 4. Stockage
 
 | Système | Données |
-|---------|---------|
+| --- | --- |
 | PostgreSQL | Comptes, agents, menaces, scans, **TI** (hashes, indicateurs, règles YARA, audit feeds) |
 | Redis | Cache, rate-limit, file de tâches RQ |
 | Filesystem | Quarantaine chiffrée, modèles ML, règles YARA compilées |
 
 ## Flux d'une menace, de la détection à l'éradication
 
-```
+```text
 [Agent détecte fichier suspect]
         │
         ▼
-[POST /api/analyze + multipart file]
+[POST /api/analyze/file + multipart file]
         │
         ▼
 [UnifiedDetector.analyze_bytes()]
@@ -111,7 +111,7 @@ GuardIAn suit une architecture **agent / serveur / data plane**, classique des E
 ## Choix techniques justifiés
 
 | Choix | Pourquoi |
-|-------|----------|
+| --- | --- |
 | **FastAPI** | Async, validation Pydantic native, OpenAPI auto, perf élevée |
 | **SQLAlchemy 2.0** | ORM mature, migrations Alembic, support typed `Mapped[]` |
 | **Pydantic Settings** | Config 12-factor, validation au boot, fail-fast |

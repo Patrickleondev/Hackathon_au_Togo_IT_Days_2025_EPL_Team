@@ -1,113 +1,113 @@
-# 02 — Architecture
+# 02 - Architecture
+
+This document describes the deployable GuardIAn v2 architecture: endpoint
+agents, central backend, worker, data stores, frontend SOC console and edge
+reverse proxy.
 
 ## Components
 
 | Service | Tech | Role | Network |
-|---------|------|------|---------|
-| `backend` | FastAPI 0.115, Python 3.12 | REST API, detector orchestration | internal |
-| `worker` | RQ (Redis Queue) | Async file analysis & scans | internal |
-| `db` | PostgreSQL 16 | Threats, agents, scans, eradications | internal |
-| `redis` | Redis 7 | Job queue, rate-limit, cache | internal |
-| `frontend` | React + Vite + TS | Analyst console SPA | edge |
-| `nginx` | nginx 1.27 | TLS termination, reverse proxy | edge |
-| `agent` | Python 3.12 + watchdog | Endpoint sensor (Windows / Linux) | client-side |
+| --- | --- | --- | --- |
+| `backend` | FastAPI, Python 3.12 | REST API, auth, detector orchestration | internal |
+| `worker` | Python worker + Redis | Async scans and background jobs | internal |
+| `db` | PostgreSQL 16 | Threats, agents, scans, users, audit data | internal |
+| `redis` | Redis 7 | Queue, cache, rate-limit support | internal |
+| `frontend` | React, Vite, TypeScript, Tailwind | SOC analyst console | edge/internal |
+| `nginx` | Nginx | TLS termination and reverse proxy in prod | edge |
+| `agent` | Python 3.11+ | Endpoint watcher and telemetry sender | client-side |
 
-## Topology (production)
+## Development topology
 
 ```mermaid
-graph LR
-  subgraph "Public"
-    A[Analysts]
-    E[Endpoints<br/>Windows/Linux]
-  end
-  subgraph "Edge"
-    NX[nginx<br/>TLS]
-  end
-  subgraph "Internal"
-    BE[backend<br/>FastAPI]
-    WK[worker<br/>RQ]
-    DB[(PostgreSQL)]
-    RD[(Redis)]
-  end
-  A -->|HTTPS| NX
-  E -->|HTTPS<br/>+JWT| NX
-  NX -->|/api/*| BE
-  NX -->|/| FE[frontend SPA]
-  BE --> DB
-  BE --> RD
-  WK --> RD
-  WK --> DB
+flowchart LR
+  Analyst[Analyst browser] --> FE[Frontend Vite :5173]
+  FE --> API[Backend FastAPI :8000]
+  API --> DB[(PostgreSQL :5432)]
+  API --> Redis[(Redis :6379)]
+  Worker[Worker] --> Redis
+  Worker --> DB
 ```
 
-## Data model (simplified)
+Development Compose exposes `5173`, `8000`, `5432` and `6379` locally for
+convenience. This is not the production exposure model.
 
+## Production topology
+
+```mermaid
+flowchart LR
+  Analyst[Analyst browser] -->|HTTPS 443| Nginx[Nginx]
+  Agent[Endpoint agents] -->|HTTPS 443 + JWT| Nginx
+  Nginx --> Frontend[Static frontend]
+  Nginx --> Backend[FastAPI backend]
+  Backend --> DB[(PostgreSQL)]
+  Backend --> Redis[(Redis)]
+  Worker[Worker] --> Redis
+  Worker --> DB
 ```
-User(id, email, password_hash, role) ─┐
-Agent(id, hostname, os, token)        ├── audit ───► created_at / updated_at
-Threat(id, agent_id?, type, severity, │   on every row
-       confidence, file_sha256,       │
-       indicators JSON, status)       │
-Scan(id, scan_type, status,           │
-     target_paths, files_scanned,     │
-     threats_found)                   │
-Eradication(id, threat_id, actions,   │
-            scope JSON, dry_run,      │
-            result JSON)              ┘
-```
+
+In production, only Nginx should be public. PostgreSQL and Redis remain inside
+Docker networks.
+
+## Main data flows
+
+| Flow | Source | Destination | Endpoint / protocol |
+| --- | --- | --- | --- |
+| Analyst login | Frontend | Backend | `POST /api/auth/login` |
+| SOC dashboard | Frontend | Backend | `GET /api/status`, `GET /api/stats` |
+| Threat list/actions | Frontend | Backend | `GET /api/threats`, action POST routes |
+| File upload analysis | Frontend | Backend | `POST /api/analyze/file` |
+| Agent file analysis | Agent | Backend | `POST /api/analyze/agent-file` |
+| Network telemetry | Agent / sensor | Backend | `POST /api/network/events` |
+| Chat assistant | Frontend | Backend | `POST /api/chat` |
 
 ## Detection sequence
 
 ```mermaid
 sequenceDiagram
-  participant W as Endpoint (agent)
-  participant B as Backend /api
+  participant A as Agent or Analyst
+  participant B as Backend API
   participant D as Detector
   participant DB as PostgreSQL
 
-  W->>W: watchdog: file_created(C:\...\foo.exe)
-  W->>W: local heuristic.is_suspicious()
-  alt suspicious
-    W->>B: POST /analyze/agent-file (multipart)
-    B->>D: analyze_bytes(name, data)
-    D->>D: extract 14-feature vector
-    D->>D: heuristic+ML+YARA scoring
-    D-->>B: DetectionResult
-    alt is_threat
-      B->>DB: INSERT INTO threats
-    end
-    B-->>W: 200 JSON {is_threat, severity, confidence, …}
+  A->>B: POST /api/analyze/file or /api/analyze/agent-file
+  B->>D: analyze_bytes(filename, content)
+  D->>D: hash intel + static features + heuristics + ML + YARA
+  D-->>B: DetectionResult
+  alt threat detected
+    B->>DB: persist threat record
   end
+  B-->>A: JSON verdict
 ```
 
-## Authentication
+## Storage layout
 
-Two distinct JWT scopes signed with the same `SECRET_KEY` but different TTLs:
-
-- **`scope=user`** — analysts logging into the SPA. 60-minute access token.
-- **`scope=agent`** — endpoint sensors. 30-day access token, issued at enrollment.
-
-Routes use FastAPI dependencies (`require_user`, `require_agent`) to enforce
-scope. There is no shared route — analysts cannot impersonate agents and
-vice-versa.
-
-## Storage layout (inside the backend container)
-
-```
+```text
 /var/lib/guardian/
-├── uploads/        # incoming files for analyze/file
-├── quarantine/     # quarantined samples (server-side eradication)
-├── models/         # detector.joblib (scikit-learn bundle)
-└── rules/          # *.yar / *.yara YARA rules
+|-- uploads/        incoming files for analysis
+|-- quarantine/     quarantined samples
+|-- models/         trained detector artifacts
+`-- rules/          YARA rules
 ```
 
-These are mounted as the `rg_data` Docker volume, so they survive
-backend image updates.
+These paths are mounted through the `guardian_data` Docker volume, so they
+survive backend image updates.
+
+## Authentication model
+
+| Token type | Used by | Lifetime | Notes |
+| --- | --- | ---: | --- |
+| User JWT | SOC analysts | `JWT_ACCESS_TTL_MINUTES` | login through `/api/auth/login` |
+| Agent JWT | Endpoint agents | `JWT_AGENT_TTL_DAYS` | issued during enrollment |
+
+Routes enforce scopes through FastAPI dependencies. Analysts and agents do not
+share the same access path.
 
 ## Failure modes
 
-| Failure | Behaviour |
-|---------|-----------|
-| ML model missing | Detector falls back to heuristic+YARA only (`detector_ready=false`) |
-| YARA lib unavailable | YARA score skipped; weights reweighted to heuristic+ML |
-| DB down | API returns 503 on routes that need it; agents queue uploads with retry |
-| Redis down | Workers stop; sync API endpoints still work |
+| Failure | Expected behaviour |
+| --- | --- |
+| ML model missing | detector falls back to heuristics/YARA and reports `detector_ready=false` |
+| Redis down | worker jobs pause; synchronous API routes can still respond |
+| PostgreSQL down | API routes needing persistence fail until DB returns |
+| Threat intel keys absent | optional feeds are skipped or run in reduced mode |
+| LLM disabled | chat assistant answers from the local knowledge base |
