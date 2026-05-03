@@ -5,16 +5,16 @@
 ## Rôle
 
 | Fonction | Détail |
-|----------|--------|
+| --- | --- |
 | **Heartbeat** | Toutes les N secondes (défaut 30 s) — preuve de vie |
 | **Real-time scanner** | Surveille `%TEMP%`, `Downloads`, `Desktop`, partages |
 | **Telemetry** | Process tree, connexions réseau, modifs registre — **roadmap Phase D** |
-| **File submission** | POST `/api/analyze` quand un fichier suspect apparaît |
+| **File submission** | POST `/api/analyze/agent-file` quand un fichier suspect apparaît |
 | **Eradication** | Quarantaine locale + suppression sur ordre du SOC |
 
 ## Architecture (cible Phase D)
 
-```
+```text
 ┌─────────────────────────────────────────────────┐
 │  GuardIAn Tray Service (.NET 8 / C# OU PySide6) │
 │   ┌────────────────────────────────────────┐    │
@@ -28,13 +28,13 @@
 │   └────────────────────────────────────────┘    │
 └────────────────┬────────────────────────────────┘
                  │ POST /api/agents/heartbeat
-                 │ POST /api/analyze
+                 │ POST /api/analyze/agent-file
                  │ GET  /api/eradication/orders
                  ▼
         ┌────────────────────┐
         │  Backend FastAPI   │
         └────────────────────┘
-```
+```text
 
 ## Authentification
 
@@ -46,7 +46,7 @@ JWT scope `agent` :
 
 ## Flux d'une détection
 
-```
+```text
 [fichier.exe créé dans Downloads]
         │
         ▼
@@ -56,7 +56,7 @@ JWT scope `agent` :
 [Calcul SHA-256 local]
         │
         ▼
-[POST /api/analyze (multipart, ≤ 50 MB)]
+[POST /api/analyze/agent-file (multipart, ≤ 50 MB)]
         │
         ▼
 [Reçoit DetectionResult]
@@ -85,7 +85,7 @@ L'agent poll `GET /api/eradication/orders?agent_id=...` toutes les 60 s. Le SOC 
 ## Performance & impact système
 
 | Métrique | Cible |
-|----------|-------|
+| --- | --- |
 | RAM | < 100 Mo |
 | CPU idle | < 0.5 % |
 | CPU pic (analyse) | < 5 % |
@@ -103,11 +103,11 @@ Le code agent est dans `agent_windows/` (squelette PySide6). La Phase D (Sysmon/
 
 ## Sources & lectures
 
-- **Sysmon** : https://learn.microsoft.com/en-us/sysinternals/downloads/sysmon
-- **Sysmon-modular** (config baseline) : https://github.com/olafhartong/sysmon-modular
-- **ETW** : https://learn.microsoft.com/en-us/windows/win32/etw/
-- **MITRE ATT&CK D3FEND for endpoint** : https://d3fend.mitre.org/
-- **Authenticode signing** : https://learn.microsoft.com/en-us/windows-hardware/drivers/install/authenticode
+- **Sysmon** : <https://learn.microsoft.com/en-us/sysinternals/downloads/sysmon>
+- **Sysmon-modular** (config baseline) : <https://github.com/olafhartong/sysmon-modular>
+- **ETW** : <https://learn.microsoft.com/en-us/windows/win32/etw/>
+- **MITRE ATT&CK D3FEND for endpoint** : <https://d3fend.mitre.org/>
+- **Authenticode signing** : <https://learn.microsoft.com/en-us/windows-hardware/drivers/install/authenticode>
 
 ## Suite
 

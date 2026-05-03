@@ -20,7 +20,7 @@ docker compose -f infra/docker-compose.prod.yml exec -T db \
     pg_dump -U $POSTGRES_USER $POSTGRES_DB | gzip > backup-$(date +%F).sql.gz
 ```
 
-The `rg_data` volume contains uploads, quarantine and the trained model — back
+The `guardian_data` volume contains uploads, quarantine and the trained model — back
 it up separately if you keep large samples.
 
 ## Updating YARA rules
@@ -50,10 +50,10 @@ The new model is loaded on the next backend restart, or by calling
 ## Health endpoints
 
 | Endpoint | What it tells you |
-|----------|-------------------|
+| --- | --- |
 | `GET /api/health` | Backend process is alive |
 | `GET /api/status` | DB connectivity + detector readiness + system metrics |
-| `docker inspect --format='{{.State.Health.Status}}' guardian-backend` | Container health |
+| `docker compose -f infra/docker-compose.prod.yml ps` | Container health summary |
 
 ## Scaling
 
@@ -68,7 +68,7 @@ The architecture is intentionally horizontal-friendly:
 ## Common incidents
 
 | Symptom | Action |
-|---------|--------|
+| --- | --- |
 | `detector_ready=false` on `/status` | Run `train_detector`; check `MODELS_DIR` is mounted writable |
 | YARA scores always 0 | `apt-get install libyara-dev` in image; or rules dir empty |
 | All uploads return 413 | Increase `MAX_UPLOAD_MB` AND `client_max_body_size` in nginx |

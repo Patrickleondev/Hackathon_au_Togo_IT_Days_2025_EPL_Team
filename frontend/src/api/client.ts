@@ -71,6 +71,25 @@ export interface Agent {
   is_active: boolean
 }
 
+export interface NetworkBeacon {
+  id: string
+  src_ip: string
+  dst_ip: string
+  dst_port?: number | null
+  n_events: number
+  duration_s: number
+  period_s: number
+  score: number
+  jitter: number
+  verdict: string
+  first_seen_at: string
+  last_seen_at: string
+}
+
+export interface NetworkStats {
+  [key: string]: any
+}
+
 export const Auth = {
   async login(email: string, password: string) {
     const form = new URLSearchParams({ username: email, password })
@@ -135,6 +154,18 @@ export const Scans = {
   },
   async get(id: string) {
     return (await api.get(`/scans/${id}`)).data
+  },
+}
+
+export const Network = {
+  async stats(): Promise<NetworkStats> {
+    return (await api.get('/network/stats')).data
+  },
+  async beacons(minScore = 0.0, limit = 25): Promise<{ count: number; items: NetworkBeacon[] }> {
+    return (await api.get(`/network/beacons?min_score=${minScore}&limit=${limit}`)).data
+  },
+  async dga(domain: string) {
+    return (await api.get('/network/dga', { params: { domain } })).data
   },
 }
 

@@ -1,162 +1,132 @@
-# 08 — Installation pas à pas (débutant friendly)
+# 08 - Installation pas a pas
 
-> **Public** : tu n'as jamais lancé un projet Python/Docker. On y va doucement.
+Ce guide est la version courte et debutant-friendly. Pour le guide complet,
+voir [../04-INSTALL.md](../04-INSTALL.md). Pour un VPS, voir
+[../08-DEPLOYMENT.md](../08-DEPLOYMENT.md).
 
-## Pré-requis
+## 1. Prerequis
 
-| Outil | Version | Pourquoi | Comment installer |
-|-------|---------|----------|-------------------|
-| **Docker Desktop** | ≥ 24 | Lance backend + DB en 1 commande | https://www.docker.com/products/docker-desktop |
-| **Git** | ≥ 2.40 | Cloner le repo | https://git-scm.com/download |
-| **Python** | 3.12 | Pour les scripts annexes | https://www.python.org/downloads/ |
-| **Node.js** | 20 LTS | Frontend SOC | https://nodejs.org/ |
-| **Code editor** | — | VS Code recommandé | https://code.visualstudio.com/ |
+| Outil | Version | Pourquoi | Installation |
+| --- | --- | --- | --- |
+| Docker Desktop / Engine | 24+ | lancer la stack | <https://www.docker.com/products/docker-desktop> |
+| Git | 2.30+ | cloner le projet | <https://git-scm.com/download> |
+| Node.js | 20 LTS | dev frontend local | <https://nodejs.org/> |
+| Python | 3.11+ | agent ou backend local | <https://www.python.org/downloads/> |
+| VS Code | recent | edition du projet | <https://code.visualstudio.com/> |
 
-> Sur Windows, lance Docker Desktop **avant** la première installation.
+Sur Windows, lancez Docker Desktop avant les commandes Docker.
 
-## Étape 1 — cloner le repo
+## 2. Cloner le depot
 
 ```bash
 git clone https://github.com/Patrickleondev/Hackathon_au_Togo_IT_Days_2025_EPL_Team.git
 cd Hackathon_au_Togo_IT_Days_2025_EPL_Team
 ```
 
-## Étape 2 — configurer les variables d'environnement
+## 3. Creer le fichier d'environnement
 
 ```bash
-# copier le template
 cp infra/.env.example infra/.env
-
-# éditer (Notepad / VS Code)
-code infra/.env
 ```
 
-Variables **obligatoires** à remplir :
+PowerShell :
+
+```powershell
+Copy-Item infra\.env.example infra\.env
+```
+
+Remplissez au minimum :
 
 ```ini
-# Sécurité — GÉNÈRE de vrais secrets, ne laisse JAMAIS les valeurs ci-dessous en prod.
-# PowerShell pour générer :  python -c "import secrets; print(secrets.token_hex(32))"
-SECRET_KEY=<colle ici 64 caractères hex>
-BOOTSTRAP_ADMIN_PASSWORD=<un mot de passe fort, 24+ caractères>
-BOOTSTRAP_ADMIN_EMAIL=admin@exemple.com
-
-# Threat Intelligence (Phase A) — voir docs/system/04-threat-intelligence.md
-ABUSE_CH_AUTH_KEY=<clé abuse.ch>
-ABUSEIPDB_API_KEY=<clé abuseipdb>
-OTX_API_KEY=<clé OTX>
+SECRET_KEY=<secret fort>
+POSTGRES_USER=guardian
+POSTGRES_PASSWORD=<mot de passe fort>
+POSTGRES_DB=guardian
+BOOTSTRAP_ADMIN_EMAIL=admin@guardian.local
+BOOTSTRAP_ADMIN_PASSWORD=<mot de passe admin>
+AGENT_ENROLLMENT_SECRET=<secret agent>
+VITE_API_URL=http://localhost:8000
 ```
 
-> 🛑 Si tu laisses `SECRET_KEY` ou `BOOTSTRAP_ADMIN_PASSWORD` vides, le backend **refuse** de démarrer (fail-fast). C'est une protection contre les leaks de credentials par défaut.
-
-## Étape 3 — lancer la stack Docker
+## 4. Lancer la stack
 
 ```bash
-cd infra
-docker compose up -d
+docker compose -f infra/docker-compose.yml up -d --build
 ```
 
-Cela démarre :
-
-- `db` — PostgreSQL 16 (port 5432, **interne** Docker)
-- `redis` — Redis 7 (port 6379, interne)
-- `backend` — FastAPI (port **8000** exposé)
-- `worker` — RQ worker (background)
-- `frontend` — React/Vite (port **5173**)
-
-Vérifier :
+Verifier :
 
 ```bash
-docker compose ps
-# Tous les services doivent être "healthy"
-
+docker compose -f infra/docker-compose.yml ps
 curl http://localhost:8000/api/health
-# {"status":"ok"}
 ```
 
-## Étape 4 — premier login
-
-Ouvre http://localhost:5173 → page de login :
-
-- Email : `BOOTSTRAP_ADMIN_EMAIL` que tu as mis
-- Mot de passe : `BOOTSTRAP_ADMIN_PASSWORD`
-
-Tu arrives sur le dashboard SOC. Si vide, c'est normal — aucun agent ni menace.
-
-## Étape 5 — déclencher un premier rafraîchissement TI
-
-```bash
-# obtenir un token admin
-TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=admin@exemple.com&password=<ton_mot_de_passe>" \
-  | python -c "import sys, json; print(json.load(sys.stdin)['access_token'])")
-
-# trigger refresh manuel
-curl -X POST http://localhost:8000/api/intel/refresh \
-  -H "Authorization: Bearer $TOKEN"
-
-# ~30-60 secondes plus tard, voir les stats
-curl http://localhost:8000/api/intel/stats -H "Authorization: Bearer $TOKEN"
-```
-
-Tu devrais voir des compteurs > 0 dans `totals.hashes` et `totals.indicators`.
-
-## Étape 6 — tester la détection
-
-```bash
-# crée un fichier "EICAR" (test antivirus standard, inoffensif)
-echo 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*' > eicar.com
-
-curl -X POST http://localhost:8000/api/analyze \
-  -H "Authorization: Bearer $TOKEN" \
-  -F "file=@eicar.com"
-```
-
-Réponse attendue :
+Reponse attendue :
 
 ```json
-{
-  "is_threat": true,
-  "severity": "critical",
-  "threat_type": "ransomware|...",
-  "confidence": 0.92,
-  "matched_rules": [...],
-  "indicators": {...}
-}
+{"status":"healthy"}
 ```
 
-## Étape 7 — installer un agent Windows (optionnel)
+## 5. Ouvrir l'application
 
-Voir [07 — Agent Windows](07-agent-windows.md) (en cours).
+- Site public : <http://localhost:5173>
+- Login SOC : <http://localhost:5173/login>
+- Console SOC : <http://localhost:5173/app>
+- API docs : <http://localhost:8000/docs>
 
-## Dépannage rapide
+Connectez-vous avec `BOOTSTRAP_ADMIN_EMAIL` et `BOOTSTRAP_ADMIN_PASSWORD`.
 
-| Problème | Solution |
-|----------|----------|
-| `RuntimeError: SECRET_KEY must be set` | Remplir `SECRET_KEY` dans `infra/.env` |
-| `connection refused 5432` | DB pas encore démarrée → `docker compose logs db` |
-| `401 Unauthorized` sur `/api/intel/stats` | Token expiré → re-login |
-| `403 Admin role required` sur `/api/intel/refresh` | Tu utilises un user non-admin |
-| Frontend `ECONNREFUSED localhost:8000` | Backend down → `docker compose restart backend` |
-| Logs montrent `ssdeep.failed` | Lib ssdeep manquante — Phase B fonctionne quand même en mode dégradé |
-
-## Démarrage en local (sans Docker, dev)
+## 6. Tester le frontend
 
 ```bash
-cd backend
-python -m venv .venv
-.venv\Scripts\activate          # Windows
-# source .venv/bin/activate     # Linux/Mac
-
-pip install -e ".[dev,ssdeep]"
-$env:DATABASE_URL = "sqlite:///./local.db"
-$env:SECRET_KEY = (python -c "import secrets; print(secrets.token_hex(32))")
-$env:BOOTSTRAP_ADMIN_PASSWORD = "DevPassword!12345"
-$env:BOOTSTRAP_ADMIN_EMAIL = "admin@local.dev"
-
-uvicorn app.main:app --reload --port 8000
+cd frontend
+npm ci
+npm run build
 ```
 
-## Suite
+## 7. Tester une analyse de fichier
 
-→ [09 — FAQ & Glossaire](09-faq-glossaire.md)
+Connectez-vous d'abord via `/login`, puis utilisez la page `Analyze` de la
+console SOC. En CLI, l'endpoint reel est :
+
+```bash
+curl -X POST http://localhost:8000/api/analyze/file \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@sample.bin"
+```
+
+## 8. Voir les logs
+
+```bash
+docker compose -f infra/docker-compose.yml logs -f backend worker frontend
+```
+
+## 9. Arreter ou nettoyer
+
+Arreter sans supprimer les donnees :
+
+```bash
+docker compose -f infra/docker-compose.yml down
+```
+
+Supprimer les volumes de developpement :
+
+```bash
+docker compose -f infra/docker-compose.yml down -v
+```
+
+## 10. Problemes frequents
+
+| Probleme | Solution |
+| --- | --- |
+| Docker ne repond pas | lancer Docker Desktop ou verifier le service Docker |
+| variable `POSTGRES_USER` manquante | creer `infra/.env` depuis `infra/.env.example` |
+| API inaccessible | verifier `docker compose -f infra/docker-compose.yml logs backend` |
+| login refuse | verifier les identifiants bootstrap dans `infra/.env` |
+| frontend rouge sur l'API | verifier `VITE_API_URL=http://localhost:8000` |
+
+## 11. Suite
+
+- Installation complete : [../04-INSTALL.md](../04-INSTALL.md).
+- VPS / production : [../08-DEPLOYMENT.md](../08-DEPLOYMENT.md).
+- Operations : [../07-OPS.md](../07-OPS.md).

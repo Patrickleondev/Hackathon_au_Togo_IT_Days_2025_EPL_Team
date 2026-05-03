@@ -8,6 +8,7 @@ import Agents from './pages/Agents'
 import Analyze from './pages/Analyze'
 import Scans from './pages/Scans'
 import Stats from './pages/Stats'
+import Network from './pages/Network'
 import Home from './pages/public/Home'
 import About from './pages/public/About'
 import Features from './pages/public/Features'
@@ -44,6 +45,7 @@ export default function App() {
         <Route path="threats" element={<Threats />} />
         <Route path="agents" element={<Agents />} />
         <Route path="analyze" element={<Analyze />} />
+        <Route path="network" element={<Network />} />
         <Route path="scans" element={<Scans />} />
         <Route path="stats" element={<Stats />} />
       </Route>
