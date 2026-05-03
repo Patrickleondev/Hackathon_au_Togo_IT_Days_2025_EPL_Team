@@ -3,14 +3,21 @@
 @tailwind utilities;
 
 html, body, #root { height: 100%; }
-body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+body { 
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; 
+  @apply bg-slate-950 text-slate-200;
+}
 
-.card { @apply bg-white rounded-xl shadow-sm p-6 border border-slate-200; }
-.btn  { @apply inline-flex items-center px-4 py-2 rounded-lg font-medium transition; }
-.btn-primary { @apply btn bg-brand-600 text-white hover:bg-brand-700; }
-.btn-ghost   { @apply btn bg-slate-100 hover:bg-slate-200 text-slate-800; }
-.input { @apply w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500; }
-.tag-low      { @apply text-xs font-semibold px-2 py-1 rounded bg-emerald-100 text-emerald-800; }
-.tag-medium   { @apply text-xs font-semibold px-2 py-1 rounded bg-amber-100 text-amber-800; }
-.tag-high     { @apply text-xs font-semibold px-2 py-1 rounded bg-orange-100 text-orange-800; }
-.tag-critical { @apply text-xs font-semibold px-2 py-1 rounded bg-red-100 text-red-800; }
+/* Redesign globally to fit a strict Dark SOC Theme */
+.card { @apply bg-slate-900 rounded shadow-md p-6 border border-slate-800; }
+
+.btn  { @apply inline-flex items-center px-4 py-2 rounded font-medium transition focus:ring-2 focus:outline-none focus:ring-offset-2 focus:ring-offset-slate-950; }
+.btn-primary { @apply btn bg-blue-600 border border-blue-500 text-white hover:bg-blue-700 shadow-[0_0_10px_rgba(37,99,235,0.2)]; }
+.btn-ghost   { @apply btn bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200; }
+
+.input { @apply w-full px-3 py-2 border border-slate-700 bg-slate-900 rounded focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-slate-100 placeholder-slate-500; }
+
+.tag-low      { @apply text-[11px] font-bold px-2 py-0.5 rounded-sm border border-emerald-900 bg-emerald-900/30 text-emerald-400 uppercase tracking-wider; }
+.tag-medium   { @apply text-[11px] font-bold px-2 py-0.5 rounded-sm border border-amber-900 bg-amber-900/30 text-amber-400 uppercase tracking-wider; }
+.tag-high     { @apply text-[11px] font-bold px-2 py-0.5 rounded-sm border border-orange-900 bg-orange-900/30 text-orange-400 uppercase tracking-wider; }
+.tag-critical { @apply text-[11px] font-bold px-2 py-0.5 rounded-sm border border-red-900 bg-red-900/30 text-red-400 uppercase tracking-wider; }
