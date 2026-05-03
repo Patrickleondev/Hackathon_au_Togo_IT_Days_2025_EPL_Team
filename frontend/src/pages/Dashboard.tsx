@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Status, type SystemStatus } from '@/api/client'
 import { Activity, Cpu, MemoryStick, HardDrive, AlertTriangle, Server, ShieldAlert, Search } from 'lucide-react'
 
@@ -18,6 +19,7 @@ function Stat({ icon: Icon, label, value, colorClass = 'text-blue-500', bgClass 
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate()
   const [s, setS] = useState<SystemStatus | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
@@ -111,17 +113,17 @@ export default function Dashboard() {
             <h2 className="font-semibold uppercase tracking-widest text-xs text-slate-300">Live Operations</h2>
           </div>
           <div className="space-y-3">
-             <button className="w-full text-left bg-slate-950 hover:bg-slate-900 border border-slate-800 p-4 rounded flex items-center justify-between transition group">
+             <button onClick={() => navigate('/app/scans')} className="w-full text-left bg-slate-950 hover:bg-slate-900 border border-slate-800 p-4 rounded flex items-center justify-between transition group">
                <div>
                   <div className="text-sm font-bold text-slate-200 group-hover:text-blue-400 transition">Force Global Sweep</div>
                   <div className="text-[11px] tracking-widest text-slate-500 uppercase mt-1">Initiates behavior signature matches on all agents</div>
                </div>
                <Activity size={18} className="text-slate-700 group-hover:text-blue-500" />
              </button>
-             <button className="w-full text-left bg-slate-950 hover:bg-slate-900 border border-slate-800 p-4 rounded flex items-center justify-between transition group">
+             <button onClick={() => navigate('/app/network')} className="w-full text-left bg-slate-950 hover:bg-slate-900 border border-slate-800 p-4 rounded flex items-center justify-between transition group">
                <div>
                   <div className="text-sm font-bold text-slate-200 group-hover:text-blue-400 transition">Update Threat Intel</div>
-                  <div className="text-[11px] tracking-widest text-slate-500 uppercase mt-1">Pull STIX/TAXII Indicators from upstream C2</div>
+                  <div className="text-[11px] tracking-widest text-slate-500 uppercase mt-1">Inspect DGA, JA3 and beaconing telemetry</div>
                </div>
                <MemoryStick size={18} className="text-slate-700 group-hover:text-blue-500" />
              </button>
