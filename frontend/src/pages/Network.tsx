@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { type FormEvent, useState } from 'react'
 import { Activity, Globe2, Loader2, Radar, Search, ShieldAlert, Wifi } from 'lucide-react'
 import { Network, type NetworkBeacon, type NetworkStats } from '@/api/client'
 
@@ -14,15 +14,6 @@ function Metric({ label, value, icon: Icon }: { label: string; value: string | n
       </div>
     </div>
   )
-}
-
-function bestNumber(data: NetworkStats | null, keys: string[], fallback = 0) {
-  if (!data) return fallback
-  for (const key of keys) {
-    const value = data[key]
-    if (typeof value === 'number') return value
-  }
-  return fallback
 }
 
 export default function NetworkPage() {
@@ -50,7 +41,7 @@ export default function NetworkPage() {
     }
   }
 
-  async function scoreDomain(event: React.FormEvent) {
+  async function scoreDomain(event: FormEvent) {
     event.preventDefault()
     if (!domain.trim()) return
     setError(null)
@@ -88,9 +79,9 @@ export default function NetworkPage() {
       )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Metric label="Events observed" value={bestNumber(stats, ['events', 'event_count', 'total_events'])} icon={Wifi} />
-        <Metric label="Beacon candidates" value={beacons.length} icon={Radar} />
-        <Metric label="Known indicators" value={bestNumber(stats, ['indicators', 'indicator_count', 'ja3_count'])} icon={Globe2} />
+        <Metric label="Events observed" value={stats?.events_total ?? 0} icon={Wifi} />
+        <Metric label="Beacon candidates" value={stats?.beacons ?? beacons.length} icon={Radar} />
+        <Metric label="JA3 fingerprints" value={stats?.ja3_fingerprints ?? 0} icon={Globe2} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.9fr_1.1fr]">

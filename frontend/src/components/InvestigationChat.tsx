@@ -3,6 +3,7 @@ import { MessageSquare, X, Send, Command, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { Assistant } from '@/api/client'
+import { SUPPORTED_LANGUAGES, type SupportedLanguage } from '@/i18n'
 
 type Message = {
   id: string
@@ -21,6 +22,15 @@ export default function InvestigationChat() {
   const [isTyping, setIsTyping] = useState(false)
   const endOfMessagesRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const openButtonRef = useRef<HTMLButtonElement>(null)
+
+  const getAssistantLanguage = (): SupportedLanguage => {
+    const candidate = (i18n.resolvedLanguage || i18n.language || 'fr').slice(0, 2)
+    return SUPPORTED_LANGUAGES.includes(candidate as SupportedLanguage)
+      ? (candidate as SupportedLanguage)
+      : 'fr'
+  }
 
   useEffect(() => {
     if (endOfMessagesRef.current) {
@@ -32,12 +42,37 @@ export default function InvestigationChat() {
     if (!isOpen) return
     const timer = window.setTimeout(() => inputRef.current?.focus(), 80)
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsOpen(false)
+      if (event.key === 'Escape') {
+        setIsOpen(false)
+        return
+      }
+
+      if (event.key !== 'Tab' || !dialogRef.current) return
+
+      const focusableElements = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => !element.hasAttribute('disabled'))
+
+      if (!focusableElements.length) return
+
+      const firstElement = focusableElements[0]
+      const lastElement = focusableElements[focusableElements.length - 1]
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault()
+        lastElement.focus()
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault()
+        firstElement.focus()
+      }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => {
       window.clearTimeout(timer)
       window.removeEventListener('keydown', onKeyDown)
+      openButtonRef.current?.focus()
     }
   }, [isOpen])
 
@@ -51,7 +86,7 @@ export default function InvestigationChat() {
     setIsTyping(true)
 
     try {
-      const lang = (i18n.resolvedLanguage || i18n.language || 'fr').startsWith('en') ? 'en' : 'fr'
+      const lang = getAssistantLanguage()
       const reply = await Assistant.send(userMsg.text, lang)
       const source = reply.source === 'llm' && reply.provider ? ` // ${reply.provider}` : ` // ${reply.source.toUpperCase()}`
       setMessages(prev => [...prev, {
@@ -71,6 +106,7 @@ export default function InvestigationChat() {
     <>
       {!isOpen && (
         <button
+          ref={openButtonRef}
           onClick={() => setIsOpen(true)}
           className="fixed bottom-6 right-6 p-4 rounded-full bg-blue-600 text-white shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2 focus:ring-offset-slate-950 hover:bg-blue-700 transition z-50"
           title="Open Investigation Terminal"
@@ -83,12 +119,13 @@ export default function InvestigationChat() {
       <AnimatePresence>
         {isOpen && (
           <motion.div
+            ref={dialogRef}
             initial={{ opacity: 0, y: 50, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.95 }}
             className="fixed bottom-4 right-4 md:bottom-6 md:right-6 w-[min(calc(100vw-2rem),28rem)] h-[min(560px,calc(100vh-2rem))] flex flex-col bg-slate-900 border border-slate-700 shadow-2xl rounded-lg overflow-hidden z-50 text-slate-300 font-mono text-sm"
             role="dialog"
-            aria-modal="false"
+            aria-modal="true"
             aria-label="SOC investigation terminal"
           >
             {/* Header */}

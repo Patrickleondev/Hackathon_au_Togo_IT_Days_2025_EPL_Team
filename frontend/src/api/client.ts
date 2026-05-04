@@ -87,7 +87,11 @@ export interface NetworkBeacon {
 }
 
 export interface NetworkStats {
-  [key: string]: any
+  events_total: number
+  events_last_24h: number
+  beacons: number
+  ja3_fingerprints: number
+  per_source: Record<string, number>
 }
 
 export const Auth = {
