@@ -93,8 +93,10 @@ GuardIAn does not require n8n to run. External workflow automation is documented
 Current integration path:
 
 - n8n reads GuardIAn via `/threats` and `/chat`.
-- Nuclei results come from an allowlisted internal runner, not from GuardIAn itself.
+- n8n reads detection-intelligence state via `/intel/stats`.
+- Admin-only n8n branches may trigger `/intel/refresh` for TI/YARA synchronization.
 - Native ingestion of external workflow events is a roadmap item, not a public API yet.
+- External scanners are intentionally deferred to a later integration.
 
 ## Errors
 

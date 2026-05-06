@@ -1,5 +1,5 @@
 {
-  "name": "GuardIAn SOC - Continuous Alerting and Nuclei Digest",
+  "name": "GuardIAn SOC - Native Alerts and Detection Intelligence",
   "nodes": [
     {
       "parameters": {
@@ -12,13 +12,66 @@
           ]
         }
       },
-      "id": "schedule-trigger",
+      "id": "schedule-alerts",
       "name": "Every 15 minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        -760,
-        120
+        -860,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "schedule-intel-sync",
+      "name": "Every 6 hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -860,
+        320
+      ],
+      "disabled": true,
+      "notes": "Enable only when the instance is allowed to refresh online TI/YARA feeds. GuardIAn already has an internal scheduler; this branch is for SOC-controlled refreshes."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.GUARDIAN_API_URL + '/auth/login'}}",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "username",
+              "value": "={{$env.BOOTSTRAP_ADMIN_EMAIL}}"
+            },
+            {
+              "name": "password",
+              "value": "={{$env.BOOTSTRAP_ADMIN_PASSWORD}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "login-alerts",
+      "name": "Login for alert digest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -620,
+        40
       ]
     },
     {
@@ -43,13 +96,13 @@
           "timeout": 20000
         }
       },
-      "id": "guardian-login",
-      "name": "Login to GuardIAn",
+      "id": "login-intel-sync",
+      "name": "Login for intel refresh",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -520,
-        120
+        -620,
+        320
       ]
     },
     {
@@ -69,47 +122,90 @@
         }
       },
       "id": "fetch-threats",
-      "name": "Fetch recent threats",
+      "name": "Fetch GuardIAn alerts",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -280,
-        20
+        -360,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.GUARDIAN_API_URL + '/intel/stats'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{'Bearer ' + $items('Login for alert digest')[0].json.access_token}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "fetch-intel-stats",
+      "name": "Fetch detection intelligence stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -360,
+        120
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{$env.NUCLEI_RUNNER_URL + '/scan'}}",
-        "sendBody": true,
-        "contentType": "json",
-        "jsonBody": "={{ { targets: ($env.NUCLEI_TARGETS || '').split(',').map(t => t.trim()).filter(Boolean), severity: ['medium','high','critical'] } }}",
+        "url": "={{$env.GUARDIAN_API_URL + '/intel/refresh'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{'Bearer ' + $json.access_token}}"
+            }
+          ]
+        },
         "options": {
-          "timeout": 120000
+          "timeout": 30000
         }
       },
-      "id": "run-nuclei",
-      "name": "Run authorized Nuclei scan",
+      "id": "trigger-intel-refresh",
+      "name": "Trigger TI and YARA refresh",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -280,
-        240
+        -360,
+        320
       ],
-      "disabled": true,
-      "notes": "Disabled by default. Enable only with an internal allowlisted Nuclei runner and targets you own or are authorized to assess."
+      "notes": "Admin-only GuardIAn endpoint. Refreshes MalwareBazaar, URLhaus, ThreatFox, Feodo, YARAify and optional feeds according to backend configuration."
     },
     {
       "parameters": {
-        "jsCode": "function nodeJson(name) {\n  try {\n    return $items(name)[0]?.json || {};\n  } catch (error) {\n    return {};\n  }\n}\nconst threatsPayload = nodeJson('Fetch recent threats');\nconst nucleiPayload = nodeJson('Run authorized Nuclei scan');\nconst threats = threatsPayload.items || threatsPayload || [];\nconst nuclei = nucleiPayload.findings || nucleiPayload.results || [];\nconst threatList = Array.isArray(threats) ? threats : [];\nconst nucleiList = Array.isArray(nuclei) ? nuclei : [];\nconst criticalThreats = threatList.filter(t => ['high', 'critical'].includes(String(t.severity || '').toLowerCase()));\nconst importantNuclei = nucleiList.filter(f => ['high', 'critical'].includes(String(f.severity || '').toLowerCase()));\nconst lines = [];\nlines.push('*GuardIAn SOC Digest*');\nlines.push(`Threats: ${threatList.length} recent / ${criticalThreats.length} high-critical`);\nlines.push(`Nuclei: ${nucleiList.length} findings / ${importantNuclei.length} high-critical`);\nif (criticalThreats.length) {\n  lines.push('');\n  lines.push('*Top threats*');\n  for (const threat of criticalThreats.slice(0, 5)) {\n    lines.push(`- [${threat.severity}] ${threat.threat_type || threat.type || 'threat'} (${Math.round((threat.confidence || 0) * 100)}%) ${threat.file_path || threat.path || ''}`);\n  }\n}\nif (importantNuclei.length) {\n  lines.push('');\n  lines.push('*Top Nuclei findings*');\n  for (const finding of importantNuclei.slice(0, 5)) {\n    lines.push(`- [${finding.severity}] ${finding.template || finding.name || 'finding'} ${finding.host || finding.url || ''}`);\n  }\n}\nreturn [{ json: { shouldNotify: criticalThreats.length > 0 || importantNuclei.length > 0, text: lines.join('\\n'), threats: threatList, nuclei: nucleiList } }];"
+        "jsCode": "function firstJson(name) {\n  try {\n    return $items(name)[0]?.json || {};\n  } catch (error) {\n    return {};\n  }\n}\nconst threatsPayload = firstJson('Fetch GuardIAn alerts');\nconst intel = firstJson('Fetch detection intelligence stats');\nconst threats = Array.isArray(threatsPayload) ? threatsPayload : (threatsPayload.items || threatsPayload.threats || []);\nconst threatList = Array.isArray(threats) ? threats : [];\nconst critical = threatList.filter(t => ['high', 'critical'].includes(String(t.severity || '').toLowerCase()));\nconst highConfidence = threatList.filter(t => Number(t.confidence || 0) >= 0.85);\nconst totals = intel.totals || {};\nconst staleFeeds = Object.entries(intel.last_runs || {})\n  .filter(([, run]) => run && run.status && run.status !== 'success')\n  .map(([feed, run]) => `${feed}:${run.status}`);\nconst lines = [];\nlines.push('*GuardIAn SOC Digest*');\nlines.push(`Alerts: ${threatList.length} recent / ${critical.length} high-critical / ${highConfidence.length} confidence >= 85%`);\nlines.push(`Detection intelligence: ${totals.hashes || 0} hashes, ${totals.indicators || 0} indicators, ${totals.yara_rules || 0} YARA rules`);\nif (staleFeeds.length) {\n  lines.push(`Feed attention: ${staleFeeds.slice(0, 5).join(', ')}`);\n}\nif (critical.length) {\n  lines.push('');\n  lines.push('*Top GuardIAn alerts*');\n  for (const threat of critical.slice(0, 5)) {\n    const score = Math.round(Number(threat.confidence || 0) * 100);\n    const rules = Array.isArray(threat.matched_rules) ? threat.matched_rules.slice(0, 3).join(', ') : '';\n    lines.push(`- [${threat.severity}] ${threat.threat_type || threat.type || 'threat'} (${score}%) ${threat.file_path || threat.path || ''}${rules ? ` | ${rules}` : ''}`);\n  }\n}\nconst shouldNotify = critical.length > 0 || staleFeeds.length > 0;\nreturn [{ json: { shouldNotify, text: lines.join('\\n'), threats: threatList, intel } }];"
       },
-      "id": "format-digest",
-      "name": "Format SOC digest",
+      "id": "format-native-digest",
+      "name": "Format native SOC digest",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        0,
-        120
+        -80,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const refresh = $items('Trigger TI and YARA refresh')[0]?.json || {};\nreturn [{ json: { shouldNotify: true, text: `*GuardIAn detection intelligence refresh*\\nAccepted: ${refresh.accepted === true}\\nScope: ${(refresh.only || ['all configured feeds']).join(', ')}` } }];"
+      },
+      "id": "format-refresh-result",
+      "name": "Format refresh result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        320
       ]
     },
     {
@@ -123,13 +219,13 @@
           ]
         }
       },
-      "id": "has-critical-alerts",
-      "name": "Has alert-worthy results?",
+      "id": "has-soc-signal",
+      "name": "Has SOC signal?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        240,
-        120
+        180,
+        40
       ]
     },
     {
@@ -141,13 +237,13 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{'Bearer ' + $items('Login to GuardIAn')[0].json.access_token}}"
+              "value": "={{'Bearer ' + $items('Login for alert digest')[0].json.access_token}}"
             }
           ]
         },
         "sendBody": true,
         "contentType": "json",
-        "jsonBody": "={{ { message: 'Resume ce digest SOC en francais pour un analyste et propose les 3 prochaines actions defensives.\\n\\n' + $json.text, language: 'fr' } }}",
+        "jsonBody": "={{ { message: 'Resume ce digest SOC GuardIAn en francais et propose les 3 prochaines actions defensives.\\n\\n' + $json.text, language: 'fr' } }}",
         "options": {
           "timeout": 30000
         }
@@ -157,21 +253,21 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        520,
-        120
+        460,
+        40
       ]
     },
     {
       "parameters": {
-        "jsCode": "const digest = $items('Format SOC digest')[0].json.text;\nconst answer = $json.answer || $json.message || $json.response || '';\nreturn [{ json: { text: answer ? `${digest}\\n\\n*GuardIAn Assistant*\\n${answer}` : digest } }];"
+        "jsCode": "function nodeText(name) {\n  try {\n    return $items(name)[0]?.json?.text || '';\n  } catch (error) {\n    return '';\n  }\n}\nconst digest = nodeText('Format native SOC digest') || nodeText('Format refresh result');\nconst answer = $json.answer || $json.message || $json.response || '';\nreturn [{ json: { text: answer ? `${digest}\\n\\n*GuardIAn Assistant*\\n${answer}` : digest } }];"
       },
       "id": "merge-chat-summary",
       "name": "Merge chat summary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        760,
-        120
+        720,
+        40
       ]
     },
     {
@@ -190,8 +286,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1040,
-        -80
+        1000,
+        -160
       ],
       "disabled": true,
       "notes": "Enable after setting DISCORD_WEBHOOK_URL."
@@ -212,8 +308,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1040,
-        120
+        1000,
+        40
       ],
       "disabled": true,
       "notes": "Enable after setting TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID."
@@ -234,8 +330,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1040,
-        320
+        1000,
+        240
       ],
       "disabled": true,
       "notes": "Enable after setting WHATSAPP_WEBHOOK_URL for an approved provider or internal bridge."
@@ -246,63 +342,112 @@
       "main": [
         [
           {
-            "node": "Login to GuardIAn",
+            "node": "Login for alert digest",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Login to GuardIAn": {
+    "Every 6 hours": {
       "main": [
         [
           {
-            "node": "Fetch recent threats",
+            "node": "Login for intel refresh",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Login for alert digest": {
+      "main": [
+        [
+          {
+            "node": "Fetch GuardIAn alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Login for intel refresh": {
+      "main": [
+        [
+          {
+            "node": "Trigger TI and YARA refresh",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch GuardIAn alerts": {
+      "main": [
+        [
+          {
+            "node": "Fetch detection intelligence stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch detection intelligence stats": {
+      "main": [
+        [
+          {
+            "node": "Format native SOC digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger TI and YARA refresh": {
+      "main": [
+        [
+          {
+            "node": "Format refresh result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format native SOC digest": {
+      "main": [
+        [
+          {
+            "node": "Has SOC signal?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format refresh result": {
+      "main": [
+        [
+          {
+            "node": "Notify Discord",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Run authorized Nuclei scan",
+            "node": "Notify Telegram",
             "type": "main",
             "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch recent threats": {
-      "main": [
-        [
+          },
           {
-            "node": "Format SOC digest",
+            "node": "Notify WhatsApp provider webhook",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Run authorized Nuclei scan": {
-      "main": [
-        [
-          {
-            "node": "Format SOC digest",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Format SOC digest": {
-      "main": [
-        [
-          {
-            "node": "Has alert-worthy results?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Has alert-worthy results?": {
+    "Has SOC signal?": {
       "main": [
         [
           {

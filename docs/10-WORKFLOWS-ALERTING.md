@@ -1,38 +1,40 @@
-# 10 - Workflows SOC, n8n et alerting continu
+# 10 - Workflows SOC et alerting GuardIAn
 
-Cette page decrit l'integration optionnelle qui transforme GuardIAn en centre de commandes SOC connecte : GuardIAn collecte les signaux, n8n orchestre les workflows, un runner Nuclei autorise enrichit la surface externe, puis les alertes partent vers Discord, Telegram, WhatsApp ou un autre canal d'astreinte.
+Cette page decrit l'integration optionnelle qui transforme les alertes natives GuardIAn en boucle SOC continue : detection, digest, resume analyste, notification, puis suivi de l'intelligence de detection.
 
-> Nuclei doit etre utilise uniquement sur des actifs que vous possedez ou pour lesquels vous avez une autorisation explicite. Gardez une allowlist stricte, des limites de frequence et des journaux d'audit.
+Nuclei et les scanners externes ne font pas partie de cette integration initiale. Ils restent une piste future, a brancher plus tard quand le coeur GuardIAn sera stable.
 
 ## Objectif
 
-- Surveiller continuellement les menaces GuardIAn et les resultats de scans autorises.
-- Transformer les resultats techniques en digest lisible pour un analyste.
+- Surveiller continuellement les alertes GuardIAn : endpoint, reseau, YARA, heuristiques, ML et threat intelligence.
+- Ajouter un digest lisible pour un analyste avant l'escalade.
 - Demander au chatbot GuardIAn de proposer les prochaines actions defensives.
-- Notifier les equipes via les canaux deja utilises : Discord, Telegram, WhatsApp provider webhook.
-- Garder l'integration facultative : le SOC fonctionne sans n8n.
+- Notifier les equipes via Discord, Telegram, WhatsApp provider webhook ou un autre canal d'astreinte.
+- Suivre l'etat des feeds, des regles YARA et de l'intelligence locale.
+- Garder n8n facultatif : GuardIAn fonctionne sans workflow externe.
 
 ## Architecture
 
 ```text
-+----------------+        +----------------+        +-------------------+
-| GuardIAn API   |<------>| n8n workflow   |<------>| Nuclei runner     |
-| threats/chat   |        | orchestration  |        | allowlist only    |
-+----------------+        +--------+-------+        +-------------------+
-                                  |
-                                  v
-                    +-----------------------------+
-                    | Discord / Telegram /        |
-                    | WhatsApp provider webhook   |
-                    +-----------------------------+
++-----------------------+        +----------------------+        +-----------------------------+
+| GuardIAn API          |------->| n8n SOC workflow     |------->| Discord / Telegram /        |
+| alerts, intel, chat   |        | digest + escalation  |        | WhatsApp provider webhook   |
++-----------+-----------+        +----------+-----------+        +-----------------------------+
+            |                               |
+            v                               v
++-----------------------+        +----------------------+
+| TI + YARA scheduler   |        | SOC operator actions |
+| MalwareBazaar, etc.   |        | ack, triage, refresh |
++-----------------------+        +----------------------+
 ```
 
-Le template fourni dans [integrations/n8n/guardian-soc-alerting-workflow.json](../integrations/n8n/guardian-soc-alerting-workflow.json) fait quatre choses :
+Le template [integrations/n8n/guardian-soc-alerting-workflow.json](../integrations/n8n/guardian-soc-alerting-workflow.json) fait trois choses :
 
 1. Se connecte a GuardIAn via `/api/auth/login`.
-2. Lit les menaces recentes via `/api/threats`.
-3. Optionnellement, appelle un runner Nuclei interne via `POST /scan`.
-4. Envoie le digest au chatbot GuardIAn via `/api/chat`, puis notifie les canaux d'astreinte.
+2. Lit les alertes recentes via `/api/threats` et l'etat detection-intelligence via `/api/intel/stats`.
+3. Envoie le digest au chatbot GuardIAn via `/api/chat`, puis notifie les canaux actives.
+
+Une branche desactivee permet aussi de declencher `/api/intel/refresh` toutes les 6 heures, pour les environnements connectes ou l'equipe SOC veut piloter la synchronisation depuis n8n. Le backend GuardIAn possede deja son scheduler interne ; cette branche est donc un controle supplementaire, pas une obligation.
 
 ## Demarrage local
 
@@ -83,52 +85,25 @@ docker compose -f infra/docker-compose.workflows.yml up -d
 
 En production, proteger n8n derriere TLS, un mot de passe fort et idealement un VPN ou une restriction IP.
 
-## Runner Nuclei autorise
+## Refresh detection-intelligence
 
-Le workflow n'execute pas Nuclei directement dans le conteneur n8n. Il attend un runner interne avec ce contrat minimal :
+GuardIAn a deja un scheduler backend qui rafraichit les feeds selon `INTEL_UPDATE_INTERVAL_HOURS`. Les sources configurees aujourd'hui couvrent :
 
-```http
-POST /scan
-Content-Type: application/json
+- MalwareBazaar pour les hashes et metadonnees malware ;
+- URLhaus pour URLs et domaines malveillants ;
+- ThreatFox pour IOCs et familles ;
+- Feodo Tracker pour C2 ;
+- YARAify pour les regles YARA communautaires ;
+- AbuseIPDB et OTX si les cles sont configurees.
 
-{
-  "targets": ["https://app.example.com"],
-  "severity": ["medium", "high", "critical"]
-}
-```
+Le workflow n8n lit `/api/intel/stats` a chaque digest pour afficher le nombre de hashes, indicateurs et regles YARA disponibles. La branche `Every 6 hours` est desactivee par defaut ; si elle est activee, elle appelle `POST /api/intel/refresh` avec un compte admin GuardIAn.
 
-Reponse attendue :
+Bonnes pratiques :
 
-```json
-{
-  "findings": [
-    {
-      "template": "exposures/example",
-      "severity": "high",
-      "host": "https://app.example.com",
-      "url": "https://app.example.com/.env",
-      "matched": true
-    }
-  ]
-}
-```
-
-Regles de securite recommandees pour ce runner :
-
-- Refuser toute cible absente de l'allowlist.
-- Limiter la cadence par cible et par utilisateur.
-- Lancer Nuclei avec des templates valides et maintenus.
-- Journaliser l'ID workflow, la cible, le timestamp, la severite et le statut.
-- Ne jamais exposer le runner directement sur Internet.
-
-Variables optionnelles :
-
-```dotenv
-NUCLEI_RUNNER_URL=http://runner.internal:8088
-NUCLEI_TARGETS=https://app.example.com,https://api.example.com
-```
-
-Le noeud `Run authorized Nuclei scan` est desactive par defaut dans le template n8n. Activez-le seulement lorsque le runner et l'allowlist sont prets.
+- Activer la branche n8n seulement si l'instance a le droit de sortir vers Internet.
+- Garder les cles abuse.ch, AbuseIPDB et OTX dans `infra/.env`, jamais dans le workflow JSON.
+- Surveiller les statuts `last_runs` pour detecter un feed casse ou une cle expiree.
+- Recharger le backend apres ajout de regles YARA locales pour recompiler le moteur.
 
 ## Notifications
 
@@ -136,7 +111,7 @@ Les noeuds de notification sont desactives par defaut dans le workflow importe. 
 
 ### Discord
 
-Créer un webhook dans le salon SOC puis renseigner :
+Creer un webhook dans le salon SOC puis renseigner :
 
 ```dotenv
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
@@ -168,20 +143,52 @@ Configurer :
 WHATSAPP_WEBHOOK_URL=https://provider.example.com/guardian-alerts
 ```
 
-## Exploitation SOC
+## Idees de modules GuardIAn vNext
 
-- Garder l'intervalle initial a 15 minutes.
-- Envoyer les severites `critical` et `high` vers les canaux temps reel.
-- Garder les severites `medium` dans le digest journalier si le volume augmente.
-- Utiliser le resume GuardIAn comme point de depart, puis confirmer dans l'interface SOC avant toute action sensible.
-- Archiver les executions n8n qui ont declenche une notification pour faciliter le post-mortem.
+Ces idees sont plus puissantes que brancher un scanner externe trop tot, parce qu'elles renforcent le coeur de detection GuardIAn.
 
-## Roadmap d'integration native
+### Detection Intelligence Center
 
-Cette integration reste volontairement externe. Les evolutions naturelles cote GuardIAn sont :
+- Vue SOC dediee aux sources : YARAify, MalwareBazaar, URLhaus, ThreatFox, Feodo, OTX, AbuseIPDB.
+- Bouton admin `Refresh now` qui appelle `/api/intel/refresh`.
+- Etat par feed : dernier succes, duree, volume ingere, erreurs, prochaine execution.
+- Score de fraicheur global : `healthy`, `degraded`, `stale`, `offline`.
 
-- endpoint `/api/workflows/events` pour recevoir les resultats n8n/Nuclei comme evenements SOC natifs ;
-- timeline d'incident dans l'interface ;
-- playbooks d'acknowledgement et d'escalade ;
-- connecteurs Slack, Mattermost, email et SMS ;
-- correlation entre Nuclei, Suricata, DGA, beaconing et menaces endpoint.
+### RuleOps YARA
+
+- Catalogue des regles YARA locales et communautaires.
+- Compilation test avant activation.
+- Versioning des regles, rollback et activation par profil : strict, balanced, permissive.
+- Mesure faux positifs : si une regle declenche trop de dismiss, elle passe en observation.
+
+### Detection Algorithms Plus
+
+- Sigma pour les logs Windows/Sysmon et Linux auditd.
+- JA3/JA4 et Suricata/Zeek pour reseau.
+- Fuzzy matching ssdeep/TLSH/imphash avec seuils adaptatifs.
+- Ransomware canary files et detection d'ecriture massive.
+- Drift monitoring ML : baisse de confiance, hausse de verdicts low-confidence, familles inconnues.
+
+### Connected Sync Mode
+
+- Mode connecte : refresh automatique TI/YARA, verification de versions modele, sync des politiques SOC.
+- Mode deconnecte : cache local signe, imports offline de packs YARA/TI/modeles.
+- Journal d'audit de chaque sync : source, hash du bundle, signature, resultat.
+
+### Auto-training Control Plane
+
+Le systeme d'auto-entrainement existe deja comme base. Le module suivant doit surtout le rendre gouvernable :
+
+- file d'attente `training_candidates` depuis faux positifs, vrais positifs confirmes et low-confidence ;
+- validation analyste avant inclusion dans le dataset ;
+- entrainement hors production, export modele signe ;
+- evaluation avant promotion : precision, recall, faux positifs, regression tests ;
+- deploiement canary par groupe d'agents avant activation globale.
+
+## Roadmap future
+
+- Endpoint `/api/workflows/events` pour historiser les actions n8n et les escalades.
+- Timeline d'incident dans l'interface SOC.
+- Playbooks d'acknowledgement, d'escalade et de fermeture d'alerte.
+- Connecteurs Slack, Mattermost, email et SMS.
+- Plus tard seulement : integration Nuclei ou scanner externe, separee du workflow d'alertes GuardIAn.

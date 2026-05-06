@@ -94,15 +94,23 @@ Il ne doit pas contenir de liens locaux VS Code ou de traces de session.
 
 ### G. Workflow SOC et alerting continu
 
-- n8n optionnel pour orchestrer les digests SOC et les escalades.
-- Runner Nuclei interne, allowliste, limite et desactive par defaut.
+- n8n optionnel pour orchestrer les digests SOC GuardIAn et les escalades.
+- Lecture `/api/threats`, `/api/intel/stats` et resume analyste via `/api/chat`.
+- Branche admin optionnelle pour declencher `/api/intel/refresh` si le systeme est connecte.
 - Notifications Discord, Telegram, WhatsApp provider webhook.
-- Resume analyste via `/api/chat` avant envoi aux canaux d'astreinte.
 - Future ingestion native `/api/workflows/events` pour historiser les resultats externes.
+
+### H. Detection Intelligence Center
+
+- Module UI pour refresh YARA/TI, etat des feeds et score de fraicheur.
+- RuleOps YARA : test de compilation, activation par profil, rollback et suivi faux positifs.
+- Sigma/Sysmon, Suricata/Zeek, JA3/JA4, canary files et drift ML comme couches avancees.
+- Mode connecte/deconnecte avec bundles signes de regles, modeles et policies.
+- Auto-training gouverne : candidats, validation analyste, evaluation, modele signe, deploiement canary.
 
 ## Decisions validees
 
 - Priorite initiale : Phase A puis Network-V2 et Static-V2.
 - LLM du chatbot optionnel : garder `LLM_PROVIDER=none` si aucune cle officielle n'est configuree.
 - Dependances ML lourdes : entrainement hors backend, inference CPU legere en production.
-- Workflows externes : rester optionnels et ne jamais lancer de scan hors perimetre autorise.
+- Workflows externes : rester optionnels ; Nuclei ou scanners externes viendront plus tard, separes du workflow d'alertes GuardIAn.

@@ -70,7 +70,7 @@ All detailed docs live under [`docs/`](docs/):
 | [07-OPS.md](docs/07-OPS.md) | Logs, metrics, backups, rule updates, troubleshooting |
 | [08-DEPLOYMENT.md](docs/08-DEPLOYMENT.md) | VPS/on-prem production, TLS, secrets, hardening, backups |
 | [09-CONTRIBUTING.md](docs/09-CONTRIBUTING.md) | Branching, code style, tests, release process |
-| [10-WORKFLOWS-ALERTING.md](docs/10-WORKFLOWS-ALERTING.md) | Optional n8n workflows, Nuclei runner, Discord/Telegram/WhatsApp alerting |
+| [10-WORKFLOWS-ALERTING.md](docs/10-WORKFLOWS-ALERTING.md) | Optional n8n workflows for GuardIAn alerts, TI/YARA refresh and chat notifications |
 
 ---
 

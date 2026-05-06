@@ -35,6 +35,18 @@ docker compose -f infra/docker-compose.prod.yml up -d backend worker
 Or hot-update by `docker cp`-ing them into the running container under
 `/var/lib/guardian/rules/` and restarting the backend.
 
+For connected environments, GuardIAn can refresh configured threat-intel and
+YARA feeds through the admin endpoint:
+
+```bash
+curl -X POST https://<host>/api/intel/refresh \
+  -H "Authorization: Bearer <admin-jwt>"
+```
+
+The backend scheduler also runs this refresh according to
+`INTEL_UPDATE_INTERVAL_HOURS`. n8n may trigger the same endpoint only when the
+SOC wants explicit workflow control over synchronization.
+
 ## Re-training
 
 ```bash
