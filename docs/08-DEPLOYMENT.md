@@ -262,6 +262,13 @@ docker compose -f infra/docker-compose.prod.yml logs --tail=100 worker
 docker stats
 ```
 
+Workflow SOC optionnel :
+
+```bash
+docker compose -f infra/docker-compose.workflows.yml ps
+docker compose -f infra/docker-compose.workflows.yml logs --tail=100 n8n
+```
+
 Endpoints utiles :
 
 | Endpoint | Rôle |
@@ -284,6 +291,8 @@ Endpoints utiles :
 - Sauvegarder PostgreSQL quotidiennement vers un stockage externe.
 - Surveiller l'espace disque de `/var/lib/docker` et du volume `guardian_data`.
 - Garder `LLM_PROVIDER=none` si aucune clé LLM n'est officiellement autorisée.
+- Si n8n est active, proteger l'interface par TLS, mot de passe fort, VPN ou restriction IP.
+- Garder le runner Nuclei interne, allowliste et non expose publiquement.
 
 ## 13. Dépannage VPS
 
@@ -297,6 +306,9 @@ Endpoints utiles :
 | Agents ne s'enrôlent pas | secret différent ou URL invalide | vérifier `AGENT_ENROLLMENT_SECRET` et `BACKEND_URL` |
 | Frontend appelle localhost en production | `VITE_API_URL` mal réglé au build | mettre `VITE_API_URL=https://domaine` puis rebuild frontend |
 | 413 upload trop gros | limite Nginx ou `MAX_UPLOAD_MB` | augmenter les deux valeurs |
+| n8n ne demarre pas | `N8N_ENCRYPTION_KEY` absent | generer une valeur forte dans `infra/.env` |
+| workflow sans notifications | webhook Discord/Telegram/WhatsApp vide | configurer le canal voulu ou desactiver le noeud correspondant |
+| scan Nuclei refuse | cible absente de l'allowlist runner | verifier `NUCLEI_TARGETS` et la politique du runner |
 
 ## 14. Checklist de production
 
@@ -307,5 +319,6 @@ Endpoints utiles :
 - `/app` affiche les métriques SOC.
 - `/app/network` affiche une réponse ou une erreur claire.
 - Le terminal flottant SOC répond.
+- Si active, n8n importe [integrations/n8n/guardian-soc-alerting-workflow.json](../integrations/n8n/guardian-soc-alerting-workflow.json).
 - Les sauvegardes PostgreSQL sont planifiées.
 - Les ports 5432 et 6379 ne sont pas exposés publiquement.

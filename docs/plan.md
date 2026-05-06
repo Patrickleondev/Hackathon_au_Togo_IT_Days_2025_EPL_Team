@@ -47,7 +47,7 @@ Il ne doit pas contenir de liens locaux VS Code ou de traces de session.
 | Isolation Forest / Deep SVDD | telemetry anomaly | detection sans label |
 | Meta-learner empile | fusion finale | reduire l'evasion mono-modele |
 
-## Plan en six phases
+## Plan en sept phases
 
 ### A. Threat-intelligence service
 
@@ -92,8 +92,17 @@ Il ne doit pas contenir de liens locaux VS Code ou de traces de session.
 - Registry de modeles.
 - Deploiement canary par groupe d'agents.
 
+### G. Workflow SOC et alerting continu
+
+- n8n optionnel pour orchestrer les digests SOC et les escalades.
+- Runner Nuclei interne, allowliste, limite et desactive par defaut.
+- Notifications Discord, Telegram, WhatsApp provider webhook.
+- Resume analyste via `/api/chat` avant envoi aux canaux d'astreinte.
+- Future ingestion native `/api/workflows/events` pour historiser les resultats externes.
+
 ## Decisions validees
 
 - Priorite initiale : Phase A puis Network-V2 et Static-V2.
 - LLM du chatbot optionnel : garder `LLM_PROVIDER=none` si aucune cle officielle n'est configuree.
 - Dependances ML lourdes : entrainement hors backend, inference CPU legere en production.
+- Workflows externes : rester optionnels et ne jamais lancer de scan hors perimetre autorise.

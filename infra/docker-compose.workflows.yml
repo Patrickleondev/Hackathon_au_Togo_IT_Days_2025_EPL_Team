@@ -1,0 +1,30 @@
+name: guardian-workflows
+
+services:
+  n8n:
+    image: n8nio/n8n:1.93.0
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?set N8N_ENCRYPTION_KEY in infra/.env}
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost:5678/}
+      GENERIC_TIMEZONE: ${N8N_TIMEZONE:-Africa/Lome}
+      GUARDIAN_API_URL: ${N8N_GUARDIAN_API_URL:-http://host.docker.internal:8000/api}
+      NUCLEI_RUNNER_URL: ${NUCLEI_RUNNER_URL:-}
+      NUCLEI_TARGETS: ${NUCLEI_TARGETS:-}
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      WHATSAPP_WEBHOOK_URL: ${WHATSAPP_WEBHOOK_URL:-}
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  n8n_data:

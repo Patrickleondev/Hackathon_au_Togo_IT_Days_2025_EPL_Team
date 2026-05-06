@@ -1,64 +1,49 @@
-# 06 — REST API reference
+# 06 - REST API reference
 
-Base URL: `http://<host>/api`. All non-public routes require
-`Authorization: Bearer <jwt>`.
+Base URL: `http://<host>/api`. All non-public routes require `Authorization: Bearer <jwt>`.
 
 ## Auth
 
-| Method | Path | Body | Notes |
-|--------|------|------|-------|
-| POST | `/auth/login` | `username` + `password` (form-urlencoded, OAuth2) | Returns `{ access_token, token_type, expires_in, user }` |
-| GET | `/auth/me` | — | Current user info |
+- `POST /auth/login` - form-urlencoded `username` + `password`; returns `{ access_token, token_type, expires_in, user }`.
+- `GET /auth/me` - returns current user info.
 
 ## Status
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | `/health` | none | Liveness probe |
-| GET | `/status` | user | System metrics + detector readiness |
-| GET | `/stats` | user | Severity breakdown + 24h counts |
+- `GET /health` - public liveness probe.
+- `GET /status` - authenticated system metrics and detector readiness.
+- `GET /stats` - authenticated severity breakdown and 24h counts.
 
 ## Agents
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/agents/enroll` | open* | Register a new endpoint, returns 30-day agent JWT |
-| POST | `/agents/heartbeat` | agent | Update last-seen + metrics |
-| GET | `/agents` | user | List enrolled agents |
+- `POST /agents/enroll` - open enrollment route; registers a new endpoint and returns a 30-day agent JWT.
+- `POST /agents/heartbeat` - agent-authenticated last-seen and metrics update.
+- `GET /agents` - authenticated agent listing.
 
-\* In production, place this behind nginx + an enrollment secret header.
+In production, place `/agents/enroll` behind nginx and require the enrollment secret header.
 
 ## Threats
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | `/threats?limit=100` | user | List threats (newest first) |
-| POST | `/threats` | user | Manual ingestion |
-| POST | `/threats/{id}/quarantine` | user | Mark as quarantined |
-| POST | `/threats/{id}/neutralize` | user | Mark as neutralized |
-| POST | `/threats/{id}/dismiss` | user | False-positive |
+- `GET /threats?limit=100` - authenticated newest-first threat list.
+- `POST /threats` - authenticated manual threat ingestion.
+- `POST /threats/{id}/quarantine` - marks a threat as quarantined.
+- `POST /threats/{id}/neutralize` - marks a threat as neutralized.
+- `POST /threats/{id}/dismiss` - marks a threat as false positive.
 
 ## Scans
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/scans` | user | Start async scan (`scan_type`: quick/full/custom) |
-| GET | `/scans/{id}` | user | Scan status |
-| POST | `/scans/{id}/cancel` | user | Cancel a running scan |
+- `POST /scans` - starts an async scan with `scan_type` set to `quick`, `full` or `custom`.
+- `GET /scans/{id}` - reads scan status.
+- `POST /scans/{id}/cancel` - cancels a running scan.
 
 ## Analysis
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/analyze/file` | user | Upload + analyze a file (max `MAX_UPLOAD_MB`) |
-| POST | `/analyze/agent-file` | agent | Same, called by endpoint sensors |
+- `POST /analyze/file` - authenticated file upload and analysis, limited by `MAX_UPLOAD_MB`.
+- `POST /analyze/agent-file` - agent-authenticated file upload and analysis.
 
 ## Eradication
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/eradications` | user | Build & execute an eradication plan |
-| GET | `/eradications` | user | History |
+- `POST /eradications` - builds and executes an eradication plan.
+- `GET /eradications` - reads eradication history.
 
 Example body:
 
@@ -76,7 +61,41 @@ Example body:
 }
 ```
 
+## Network
+
+- `GET /network/stats` - authenticated network telemetry summary.
+- `GET /network/beacons` - authenticated beaconing candidates.
+- `POST /network/dga` - authenticated DGA score for a domain.
+- `POST /network/events` - authenticated network event ingestion.
+
+## Chat assistant
+
+- `POST /chat` - authenticated SOC assistant question, investigation summary or next actions.
+- `GET /chat/faq` - public FAQ knowledge base.
+- `GET /chat/suggestions` - public starter questions.
+- `GET /chat/provider` - public assistant provider status.
+
+The optional n8n workflow in [integrations/n8n/guardian-soc-alerting-workflow.json](../integrations/n8n/guardian-soc-alerting-workflow.json) posts a SOC digest to `/chat` so notifications include a GuardIAn analyst summary.
+
+Example body:
+
+```json
+{
+  "message": "Resume ce digest SOC et propose les prochaines actions defensives.",
+  "language": "fr"
+}
+```
+
+## External workflows
+
+GuardIAn does not require n8n to run. External workflow automation is documented in [docs/10-WORKFLOWS-ALERTING.md](10-WORKFLOWS-ALERTING.md).
+
+Current integration path:
+
+- n8n reads GuardIAn via `/threats` and `/chat`.
+- Nuclei results come from an allowlisted internal runner, not from GuardIAn itself.
+- Native ingestion of external workflow events is a roadmap item, not a public API yet.
+
 ## Errors
 
-All errors return `{ "detail": "<message>" }` with the appropriate HTTP code.
-401 means token expired or invalid; the SPA logs the user out automatically.
+All errors return `{ "detail": "<message>" }` with the appropriate HTTP code. `401` means the token expired or is invalid; the SPA logs the user out automatically.

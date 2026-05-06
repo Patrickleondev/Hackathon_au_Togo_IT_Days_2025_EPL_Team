@@ -1,0 +1,353 @@
+{
+  "name": "GuardIAn SOC - Continuous Alerting and Nuclei Digest",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Every 15 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -760,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.GUARDIAN_API_URL + '/auth/login'}}",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "username",
+              "value": "={{$env.BOOTSTRAP_ADMIN_EMAIL}}"
+            },
+            {
+              "name": "password",
+              "value": "={{$env.BOOTSTRAP_ADMIN_PASSWORD}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "guardian-login",
+      "name": "Login to GuardIAn",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -520,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.GUARDIAN_API_URL + '/threats?limit=25'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{'Bearer ' + $json.access_token}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "fetch-threats",
+      "name": "Fetch recent threats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -280,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.NUCLEI_RUNNER_URL + '/scan'}}",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ { targets: ($env.NUCLEI_TARGETS || '').split(',').map(t => t.trim()).filter(Boolean), severity: ['medium','high','critical'] } }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "run-nuclei",
+      "name": "Run authorized Nuclei scan",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -280,
+        240
+      ],
+      "disabled": true,
+      "notes": "Disabled by default. Enable only with an internal allowlisted Nuclei runner and targets you own or are authorized to assess."
+    },
+    {
+      "parameters": {
+        "jsCode": "function nodeJson(name) {\n  try {\n    return $items(name)[0]?.json || {};\n  } catch (error) {\n    return {};\n  }\n}\nconst threatsPayload = nodeJson('Fetch recent threats');\nconst nucleiPayload = nodeJson('Run authorized Nuclei scan');\nconst threats = threatsPayload.items || threatsPayload || [];\nconst nuclei = nucleiPayload.findings || nucleiPayload.results || [];\nconst threatList = Array.isArray(threats) ? threats : [];\nconst nucleiList = Array.isArray(nuclei) ? nuclei : [];\nconst criticalThreats = threatList.filter(t => ['high', 'critical'].includes(String(t.severity || '').toLowerCase()));\nconst importantNuclei = nucleiList.filter(f => ['high', 'critical'].includes(String(f.severity || '').toLowerCase()));\nconst lines = [];\nlines.push('*GuardIAn SOC Digest*');\nlines.push(`Threats: ${threatList.length} recent / ${criticalThreats.length} high-critical`);\nlines.push(`Nuclei: ${nucleiList.length} findings / ${importantNuclei.length} high-critical`);\nif (criticalThreats.length) {\n  lines.push('');\n  lines.push('*Top threats*');\n  for (const threat of criticalThreats.slice(0, 5)) {\n    lines.push(`- [${threat.severity}] ${threat.threat_type || threat.type || 'threat'} (${Math.round((threat.confidence || 0) * 100)}%) ${threat.file_path || threat.path || ''}`);\n  }\n}\nif (importantNuclei.length) {\n  lines.push('');\n  lines.push('*Top Nuclei findings*');\n  for (const finding of importantNuclei.slice(0, 5)) {\n    lines.push(`- [${finding.severity}] ${finding.template || finding.name || 'finding'} ${finding.host || finding.url || ''}`);\n  }\n}\nreturn [{ json: { shouldNotify: criticalThreats.length > 0 || importantNuclei.length > 0, text: lines.join('\\n'), threats: threatList, nuclei: nucleiList } }];"
+      },
+      "id": "format-digest",
+      "name": "Format SOC digest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.shouldNotify}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "has-critical-alerts",
+      "name": "Has alert-worthy results?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        240,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.GUARDIAN_API_URL + '/chat'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{'Bearer ' + $items('Login to GuardIAn')[0].json.access_token}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ { message: 'Resume ce digest SOC en francais pour un analyste et propose les 3 prochaines actions defensives.\\n\\n' + $json.text, language: 'fr' } }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "ask-guardian-chat",
+      "name": "Ask GuardIAn chat for analyst summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const digest = $items('Format SOC digest')[0].json.text;\nconst answer = $json.answer || $json.message || $json.response || '';\nreturn [{ json: { text: answer ? `${digest}\\n\\n*GuardIAn Assistant*\\n${answer}` : digest } }];"
+      },
+      "id": "merge-chat-summary",
+      "name": "Merge chat summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        760,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.DISCORD_WEBHOOK_URL}}",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ { content: $json.text } }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "notify-discord",
+      "name": "Notify Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        -80
+      ],
+      "disabled": true,
+      "notes": "Enable after setting DISCORD_WEBHOOK_URL."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{'https://api.telegram.org/bot' + $env.TELEGRAM_BOT_TOKEN + '/sendMessage'}}",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ { chat_id: $env.TELEGRAM_CHAT_ID, text: $json.text, parse_mode: 'Markdown' } }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "notify-telegram",
+      "name": "Notify Telegram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        120
+      ],
+      "disabled": true,
+      "notes": "Enable after setting TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.WHATSAPP_WEBHOOK_URL}}",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ { text: $json.text, source: 'guardian-soc' } }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "notify-whatsapp",
+      "name": "Notify WhatsApp provider webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        320
+      ],
+      "disabled": true,
+      "notes": "Enable after setting WHATSAPP_WEBHOOK_URL for an approved provider or internal bridge."
+    }
+  ],
+  "connections": {
+    "Every 15 minutes": {
+      "main": [
+        [
+          {
+            "node": "Login to GuardIAn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Login to GuardIAn": {
+      "main": [
+        [
+          {
+            "node": "Fetch recent threats",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Run authorized Nuclei scan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch recent threats": {
+      "main": [
+        [
+          {
+            "node": "Format SOC digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run authorized Nuclei scan": {
+      "main": [
+        [
+          {
+            "node": "Format SOC digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format SOC digest": {
+      "main": [
+        [
+          {
+            "node": "Has alert-worthy results?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has alert-worthy results?": {
+      "main": [
+        [
+          {
+            "node": "Ask GuardIAn chat for analyst summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask GuardIAn chat for analyst summary": {
+      "main": [
+        [
+          {
+            "node": "Merge chat summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge chat summary": {
+      "main": [
+        [
+          {
+            "node": "Notify Discord",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Telegram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify WhatsApp provider webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
